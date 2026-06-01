@@ -202,3 +202,22 @@ class DeviceHandle:
     def amplification(self, basis="hvsr", config=None, component="x"):
         """Spectral amplification for this sensor (e.g. HVSR)."""
         raise NotImplementedError
+
+    # -- export --------------------------------------------------------
+
+    def export_h5(self, path, analyses=None, components="all"):
+        """Export this sensor's cached results to a self-describing .h5.
+
+        Parameters
+        ----------
+        path : str
+            Output .h5 path.
+        analyses : list of str or None
+            Restrict to these analyses; ``None`` exports everything cached.
+        components : {"x", "y", "z", "all"}, default "all"
+
+        Notes
+        -----
+        Delegates to ``io.exporter.export_device``.
+        """
+        raise NotImplementedError

@@ -12,14 +12,31 @@ characterization on top of it.
 src/asdea_sensors/
   core/        discovery, lazy reading, windowing, resampling, cache
   model/       SignalData container + processing steps
-  config/      single configuration (sensor axes, floors, bands, STA/LTA)
+  config/      single configuration (sensor axes, geometry, bands, STA/LTA)
   derive/      baseline correction, filters, integration (acc -> vel -> disp)
   seismic/     Newmark, RotD, Arias, Fourier, PSD, STFT, peaks, CAV, Housner
-  structural/  transfer function, coherence, modal tracking, interstory drift
+  building/    transfer function, coherence, modal, torsion, drift, base rocking
   ambient/     STA/LTA, windowing, taper, FFT, Konno-Ohmachi, HVSR, amplification
   batch/       internal parallel engine (joblib)
+  io/          export results to self-describing .h5 with Provenance
   plotting/    plots, decoupled from the calculations
+examples/      extensive Jupyter tour of every method and input
 ```
+
+## Sensor layout
+
+From the installation table:
+
+| Sensor | Floor | Location |
+|--------|-------|----------|
+| MOF00134 | -1 | Electrical room, basement (base / input) |
+| MNAT0031 |  2 | Stairwell ceiling, floor 2 |
+| MNAT0034 |  3 | Stairwell ceiling, floor 3 |
+| MOF00135 |  4 | Stairwell ceiling, floor 4 |
+| MOF00136 |  4 | Cantilever meeting room, floor 4 |
+
+The stairwell sensors (base + floors 2/3/4) form a vertical array for mode
+shapes and drift; MOF00135 + MOF00136 share floor 4 and form the torsion pair.
 
 ## Units
 

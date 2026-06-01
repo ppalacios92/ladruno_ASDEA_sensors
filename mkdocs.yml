@@ -41,11 +41,15 @@ nav:
       - Peaks: seismic/peaks.md
       - CAV: seismic/cav.md
       - Housner: seismic/housner.md
-  - Structural:
-      - Transfer function: structural/transfer_function.md
-      - Coherence: structural/coherence.md
-      - Modal tracking: structural/modal_tracking.md
-      - Interstory drift: structural/interstory_drift.md
+  - Building:
+      - Overview: building/index.md
+      - Geometry: building/geometry.md
+      - Transfer function: building/transfer_function.md
+      - Coherence: building/coherence.md
+      - Modal: building/modal.md
+      - Torsion: building/torsion.md
+      - Drift: building/drift.md
+      - Base rocking: building/base_rocking.md
   - Ambient:
       - STA/LTA: ambient/sta_lta.md
       - Window selector: ambient/window_selector.md
@@ -58,8 +62,15 @@ nav:
       - Amplification: ambient/amplification.md
   - Batch:
       - Processor: batch/processor.md
+  - IO:
+      - Overview: io/index.md
+      - Provenance: io/provenance.md
+      - Exporter: io/exporter.md
+      - Results file: io/results_file.md
   - Plotting:
       - Overview: plotting/index.md
+  - Examples:
+      - Full tour: examples.md
 
 markdown_extensions:
   - admonition

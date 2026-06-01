@@ -20,13 +20,26 @@ SENSOR_AXES = {
     "MNAT0034": (3, 1, 5),
 }
 
-# Human-readable floor for each device (used in plots and summaries).
-FLOOR_TITLES = {
-    "MOF00135": "",
-    "MOF00134": "",
-    "MOF00136": "",
-    "MNAT0031": "",
-    "MNAT0034": "",
+# Per-sensor geometry, used by the building layer (torsion, mode shapes,
+# drift profile, base rocking). Floors come from the installation table; the
+# UTM coordinates (E, N), elevation and azimuth are placeholders to fill in.
+#
+# - E, N, elev : UTM easting/northing and elevation, in metres. Only relative
+#   values matter (plan distances and height differences).
+# - azimuth    : heading of the sensor's local X axis, in degrees, relative to
+#   a common building frame. The sensors were installed in a non-standard
+#   orientation, so combining them (torsion, mode shapes) needs this rotation.
+#   Leave at 0.0 if unknown; it can be estimated later by cross-correlation.
+#
+# Layout: MOF00134 is the base (-1); MNAT0031/MNAT0034/MOF00135 form a vertical
+# array along the stairwell (floors 2/3/4); MOF00135 + MOF00136 sit on floor 4
+# (stairwell + cantilever meeting room) and form the torsion pair.
+SENSOR_GEOMETRY = {
+    "MOF00134": {"floor": -1, "label": "Sala electrica subterraneo", "E": None, "N": None, "elev": None, "azimuth": 0.0},
+    "MNAT0031": {"floor":  2, "label": "Cielo piso 2 (escaleras)",   "E": None, "N": None, "elev": None, "azimuth": 0.0},
+    "MNAT0034": {"floor":  3, "label": "Cielo piso 3 (escaleras)",   "E": None, "N": None, "elev": None, "azimuth": 0.0},
+    "MOF00135": {"floor":  4, "label": "Cielo piso 4 (escaleras)",   "E": None, "N": None, "elev": None, "azimuth": 0.0},
+    "MOF00136": {"floor":  4, "label": "Cielo voladizo p4",          "E": None, "N": None, "elev": None, "azimuth": 0.0},
 }
 
 # Gravity, used to convert the raw .h5 acceleration from g to m/s^2 on read.

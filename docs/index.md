@@ -22,10 +22,14 @@ and docstrings; the docs tell you what goes inside.
 | `config` | Single configuration (sensor axes, floors, bands, STA/LTA) |
 | `derive` | Baseline correction, filters, integration (acc -> vel -> disp) |
 | `seismic` | Newmark, RotD, Arias, Fourier, PSD, STFT, peaks, CAV, Housner |
-| `structural` | Transfer function, coherence, modal tracking, interstory drift |
+| `building` | Transfer function, coherence, modal, torsion, drift, base rocking |
 | `ambient` | STA/LTA, windowing, taper, FFT, Konno-Ohmachi, HVSR, amplification |
 | `batch` | Internal parallel engine (joblib) |
+| `io` | Export results to self-describing `.h5` with Provenance |
 | `plotting` | Figures, decoupled from the calculations |
+
+The `examples/` folder has an extensive Jupyter tour showing every method with
+all of its inputs.
 
 ## Conventions
 

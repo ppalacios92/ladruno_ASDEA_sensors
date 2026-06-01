@@ -138,22 +138,74 @@ class SensorDataset:
         """PGA/PGV/PGD for every device. See DeviceHandle.peaks."""
         raise NotImplementedError
 
-    # -- structural (multi-sensor) -------------------------------------
+    # -- building characterization (multi-sensor) ----------------------
+    # These use the sensor geometry (config.SENSOR_GEOMETRY) and work across
+    # all sensors, not just a pair. See the building.* modules.
 
-    def transfer_function(self, numerator, denominator, component="x", **kwargs):
-        """Floor/base transfer function. See structural.transfer_function."""
+    def transfer_function(self, numerator=None, denominator=None, base=None,
+                          floors="all", component="x", **kwargs):
+        """Floor/base transfer function, single pair or stacked over the array.
+
+        Give ``numerator``/``denominator`` for one pair, or ``base`` plus
+        ``floors`` to stack the FRF of every floor against the base.
+        See building.transfer_function.
+        """
         raise NotImplementedError
 
     def coherence(self, sensor_a, sensor_b, component="x", **kwargs):
-        """Coherence between two sensors. See structural.coherence."""
+        """Coherence between two sensors. See building.coherence.compute."""
+        raise NotImplementedError
+
+    def coherence_matrix(self, component="x", **kwargs):
+        """Coherence between every pair of sensors. See building.coherence.matrix."""
+        raise NotImplementedError
+
+    def modal_frequencies(self, component="x", **kwargs):
+        """Modal frequencies shared by the sensors. See building.modal."""
+        raise NotImplementedError
+
+    def mode_shapes(self, component="x", **kwargs):
+        """Mode shapes (amplitude/phase per floor). See building.modal.mode_shapes."""
+        raise NotImplementedError
+
+    def torsion(self, floor, component="x", **kwargs):
+        """Torsion of a floor from its sensor pair. See building.torsion."""
         raise NotImplementedError
 
     def interstory_drift(self, upper, lower, component="x", **kwargs):
-        """Interstory drift between two floors. See structural.interstory_drift."""
+        """Interstory drift between two floors. See building.drift."""
+        raise NotImplementedError
+
+    def drift_profile(self, component="x", **kwargs):
+        """Drift profile along the height. See building.drift.drift_profile."""
+        raise NotImplementedError
+
+    def base_rocking(self, **kwargs):
+        """Base rocking from the base sensor. See building.base_rocking."""
         raise NotImplementedError
 
     def amplification(self, ref, others, basis="fourier", component="x", **kwargs):
         """Spectral amplification between sensors. See ambient.amplification."""
+        raise NotImplementedError
+
+    # -- export --------------------------------------------------------
+
+    def export_h5(self, path, analyses=None, components="all"):
+        """Export every cached result to a self-describing .h5 with Provenance.
+
+        Parameters
+        ----------
+        path : str
+            Output .h5 path.
+        analyses : list of str or None
+            Restrict to these analyses; ``None`` exports everything cached.
+        components : {"x", "y", "z", "all"}, default "all"
+
+        Notes
+        -----
+        Delegates to ``io.exporter.export_dataset``. The per-sensor form is
+        ``ds.MOF00135.export_h5(...)``.
+        """
         raise NotImplementedError
 
     # -- batch sweep ---------------------------------------------------
