@@ -601,6 +601,70 @@ class DeviceHandle:
         freqs = amb.freqs[:, 0] if getattr(amb.freqs, "ndim", 1) == 2 else amb.freqs
         return {"freqs": freqs, "spectrum": amb.mean_spectrum, "f_dom": f_dom}
 
+    def ambient(self, sta=1.0, lta=30.0, vent=20.0, vmin=0.2, vmax=2.5,
+                p=0.05, bexp=40, component="x"):
+        """Ambient (microtremor) analysis for this device.
+
+        Runs the whole pipeline internally (STA/LTA windowing -> taper -> FFT ->
+        Konno-Ohmachi -> mean spectrum) and returns one result dict with
+        everything the plots need. The sampling rate is taken from the signal,
+        so you pass only the analysis parameters; filtering is your choice when
+        you condition the object.
+
+        Parameters
+        ----------
+        sta, lta : float
+            Short- and long-term average windows [s] for the STA/LTA trigger.
+        vent : float
+            Window length [s].
+        vmin, vmax : float
+            STA/LTA acceptance band (a window is kept only if its ratio stays
+            inside it).
+        p : float
+            Cosine taper fraction.
+        bexp : int
+            Konno-Ohmachi smoothing exponent.
+        component : {"x", "y", "z"}, default "x"
+
+        Returns
+        -------
+        dict
+            Keys: fs, vmin, vmax, vent, signal, sta_lta_ratio, sta, lta,
+            windows_pos, windows_signal, freqs, per_window_spectra, spectrum
+            (mean), mean_spectrum, f_dom, dominant_period.
+        """
+        import numpy as np
+
+        params = dict(sta=sta, lta=lta, vent=vent, vmin=vmin, vmax=vmax, p=p,
+                      bexp=bexp, component=component)
+
+        def builder():
+            sig = self._signal()
+            cfg = {"Fs": 1.0 / sig.dt, "STA": sta, "LTA": lta, "vent": vent,
+                   "vmin": vmin, "vmax": vmax, "p": p, "bexp": bexp}
+            amb = sig.ambient(cfg, component=component)
+            amb.average()
+            freqs = (amb.freqs[:, 0]
+                     if getattr(amb.freqs, "ndim", 1) == 2 else amb.freqs)
+            f_dom = (1.0 / amb.dominant_period
+                     if amb.dominant_period else float("nan"))
+            return {
+                "fs": amb.fs, "vmin": vmin, "vmax": vmax, "vent": vent,
+                "signal": amb.signal,
+                "sta_lta_ratio": amb.sta_lta_ratio, "sta": amb.sta, "lta": amb.lta,
+                "windows_pos": amb.windows_pos, "windows_signal": amb.windows_signal,
+                "freqs": freqs, "per_window_spectra": amb.fft_abs,
+                "spectrum": amb.mean_spectrum, "mean_spectrum": amb.mean_spectrum,
+                "f_dom": f_dom, "dominant_period": amb.dominant_period,
+            }
+
+        def log(res, cached):
+            return ("[ambient] %s comp=%s T=%.4f s (%s)"
+                    % (self.device, component, res["dominant_period"] or float("nan"),
+                       "cached" if cached else "computed"))
+
+        return self._cached_analysis("ambient", params, builder, log)
+
     # -- structural (single sensor side) -------------------------------
 
     def modal_tracking(self, component="x", window="10min", overlap=0.5,

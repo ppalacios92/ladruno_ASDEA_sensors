@@ -202,3 +202,147 @@ def plot_mean_spectrum_all(dataset, means, component="x", layout="auto",
     if isinstance(means, dict) and "f_dom" in means:
         return means["f_dom"]
     return None
+
+
+def _ambient_devices(dataset, results):
+    """Devices present in an ``ds.ambient(...)`` broadcast result, or None."""
+    if isinstance(results, dict) and any(d in results for d in dataset.devices):
+        return [d for d in dataset.devices if d in results]
+    return None
+
+
+def plot_sta_lta_all(dataset, results, layout="auto", group=None,
+                     figsize=None, xlim=None, ylim=None, save=None):
+    """Plot the STA/LTA ratio with the vmin/vmax acceptance band (object-driven).
+
+    Feed the result of ``ds.ambient(...)``::
+
+        amb = ds.ambient(sta=1.0, lta=30.0, vent=20.0, vmin=0.2, vmax=2.5)
+        plot_sta_lta_all(ds, amb)                 # grid: one panel per sensor
+        plot_sta_lta_all(ds, amb, layout="overlay")   # ratios overlaid
+        plot_sta_lta_all(ds, ds.MOF00135.ambient())   # one sensor
+
+    layout ``auto`` -> grid (a time series per sensor); ``overlay`` puts every
+    ratio on one axes.
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    layout = _panels._layout_from_group(layout, group)
+    colors = getattr(dataset, "device_colors", {}) or {}
+    titles = getattr(dataset, "titles", {}) or {}
+
+    def draw_one(ax, res, color, band=True, label=None):
+        r = np.asarray(res["sta_lta_ratio"])
+        fs = res.get("fs")
+        x = np.arange(r.size) / fs if fs else np.arange(r.size)
+        ax.plot(x, r, lw=0.8, color=color, label=label)
+        vmin, vmax = res.get("vmin"), res.get("vmax")
+        if band and vmin is not None and vmax is not None:
+            ax.axhline(vmin, color="C3", ls="--", lw=1.0)
+            ax.axhline(vmax, color="C3", ls="--", lw=1.0)
+            ax.axhspan(vmin, vmax, color="C2", alpha=0.1)
+        ax.grid(True, alpha=0.3)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+
+    devices = _ambient_devices(dataset, results)
+
+    if devices is None:                                    # single sensor
+        fig, ax = plt.subplots(figsize=figsize or (10, 4.5))
+        draw_one(ax, results, "C0")
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel("STA/LTA ratio [-]")
+        fig.tight_layout()
+        return _panels._finish(fig, save, "sta_lta_all")
+
+    if layout == "overlay":
+        fig, ax = plt.subplots(figsize=figsize or (11, 5))
+        for j, d in enumerate(devices):
+            draw_one(ax, results[d], colors.get(d, "C%d" % (j % 10)),
+                     band=(j == 0), label=d)
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel("STA/LTA ratio [-]")
+        ax.legend(fontsize=8)
+        fig.tight_layout()
+        return _panels._finish(fig, save, "sta_lta_all")
+
+    n = len(devices)
+    fig, axes = plt.subplots(n, 1, sharex=True,
+                             figsize=figsize or (10, 2.2 * n), squeeze=False)
+    for i, d in enumerate(devices):
+        ax = axes[i][0]
+        draw_one(ax, results[d], colors.get(d, "C%d" % (i % 10)))
+        ax.set_ylabel("%s\nSTA/LTA" % d)
+    axes[-1][0].set_xlabel("Time [s]")
+    axes[0][0].set_title("STA/LTA ratio - %d sensors" % n, fontweight="bold")
+    fig.tight_layout()
+    return _panels._finish(fig, save, "sta_lta_all")
+
+
+def plot_windows_all(dataset, results, layout="auto", group=None,
+                     figsize=None, xlim=None, ylim=None, save=None):
+    """Plot the signal with the selected ambient windows shaded (object-driven).
+
+    Feed the result of ``ds.ambient(...)``::
+
+        amb = ds.ambient(sta=1.0, lta=30.0, vent=20.0, vmin=0.2, vmax=2.5)
+        plot_windows_all(ds, amb)                 # grid: one panel per sensor
+        plot_windows_all(ds, ds.MOF00135.ambient())   # one sensor
+
+    The windows that passed the STA/LTA band are shaded over each sensor signal.
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    layout = _panels._layout_from_group(layout, group)
+    colors = getattr(dataset, "device_colors", {}) or {}
+
+    def draw_one(ax, res, color):
+        sig = np.asarray(res["signal"])
+        fs = res.get("fs")
+        vent = res.get("vent")
+        x = np.arange(sig.size) / fs if fs else np.arange(sig.size)
+        ax.plot(x, sig, lw=0.5, color=color)
+        pos = res.get("windows_pos")
+        nwin = int(fs * vent) if (fs and vent) else None
+        if pos is not None and nwin:
+            first = True
+            for a in np.atleast_1d(pos):
+                a = int(a)
+                x0 = a / fs
+                x1 = min(a + nwin, sig.size - 1) / fs
+                ax.axvspan(x0, x1, color="C2", alpha=0.25,
+                           label="selected window" if first else None)
+                first = False
+        ax.grid(True, alpha=0.3)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+
+    devices = _ambient_devices(dataset, results)
+
+    if devices is None:                                    # single sensor
+        fig, ax = plt.subplots(figsize=figsize or (10, 4.5))
+        draw_one(ax, results, "0.4")
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel("Acceleration [m/s^2]")
+        ax.legend(fontsize=8)
+        fig.tight_layout()
+        return _panels._finish(fig, save, "ambient_windows_all")
+
+    n = len(devices)
+    fig, axes = plt.subplots(n, 1, sharex=True,
+                             figsize=figsize or (10, 2.2 * n), squeeze=False)
+    for i, d in enumerate(devices):
+        ax = axes[i][0]
+        draw_one(ax, results[d], colors.get(d, "C%d" % (i % 10)))
+        ax.set_ylabel("%s\n[m/s^2]" % d)
+    axes[-1][0].set_xlabel("Time [s]")
+    axes[0][0].set_title("Selected ambient windows - %d sensors" % n,
+                         fontweight="bold")
+    fig.tight_layout()
+    return _panels._finish(fig, save, "ambient_windows_all")
