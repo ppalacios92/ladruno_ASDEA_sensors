@@ -90,7 +90,8 @@ def _read_device(dataset, device, target):
 
 
 def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
-                  number_max_points=None, window=None, figsize=None, save=None):
+                  number_max_points=None, window=None, xlim=None, figsize=None,
+                  save=None):
     """Plot a downsampled overview of every sensor with the window marked.
 
     Parameters
@@ -112,6 +113,10 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
         to force finer or coarser detail.
     window : tuple or None
         ``(start, end)`` (datetime or string) drawn as red dashed lines.
+    xlim : tuple or None
+        ``(start, end)`` (datetime or string) to zoom the x axis to a date
+        range. Independent of ``window``: you can zoom to a region and still
+        mark the analysis window inside it. ``None`` shows the whole record.
     figsize : tuple or None
         Figure size; the downsampling resolution is taken from its width.
     save : str or None
@@ -168,6 +173,8 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
             if j == 0:
                 ax.set_ylabel(ylab)
             ax.grid(True, alpha=0.3)
+            if xlim is not None:
+                ax.set_xlim(_to_dt64(xlim[0]), _to_dt64(xlim[1]))
             if i == 2:
                 ax.xaxis.set_major_formatter(fmt)
 
