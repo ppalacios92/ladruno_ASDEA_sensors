@@ -305,18 +305,19 @@ def plot_windows_all(dataset, results, layout="auto", group=None,
         fs = res.get("fs")
         vent = res.get("vent")
         x = np.arange(sig.size) / fs if fs else np.arange(sig.size)
-        ax.plot(x, sig, lw=0.5, color=color)
+        ax.plot(x, sig, lw=0.5, color="black")
         pos = res.get("windows_pos")
+        pos = np.atleast_1d(pos) if pos is not None else np.array([])
         nwin = int(fs * vent) if (fs and vent) else None
-        if pos is not None and nwin:
-            first = True
-            for a in np.atleast_1d(pos):
+        if nwin and pos.size:
+            # One distinct color per window (rainbow), as in AmbientSoilPeriod.
+            cmap = plt.cm.hsv(np.linspace(0, 1, pos.size))
+            for i, a in enumerate(pos):
                 a = int(a)
                 x0 = a / fs
                 x1 = min(a + nwin, sig.size - 1) / fs
-                ax.axvspan(x0, x1, color="C2", alpha=0.25,
-                           label="selected window" if first else None)
-                first = False
+                ax.axvspan(x0, x1, facecolor=cmap[i], alpha=0.35,
+                           edgecolor=cmap[i], lw=0.3)
         ax.grid(True, alpha=0.3)
         if xlim is not None:
             ax.set_xlim(xlim)
@@ -330,7 +331,6 @@ def plot_windows_all(dataset, results, layout="auto", group=None,
         draw_one(ax, results, "0.4")
         ax.set_xlabel("Time [s]")
         ax.set_ylabel("Acceleration [m/s^2]")
-        ax.legend(fontsize=8)
         fig.tight_layout()
         return _panels._finish(fig, save, "ambient_windows_all")
 
