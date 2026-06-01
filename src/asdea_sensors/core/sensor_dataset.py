@@ -67,7 +67,7 @@ class SensorDataset:
     """
 
     def __init__(self, path, pattern="*.h5", date_source="filename",
-                 devices=None, load_mode="auto", ram_fraction=0.5,
+                 devices=None, titles=None, load_mode="auto", ram_fraction=0.5,
                  axes_map=None, verbose=True):
         self.path = path
         self.pattern = pattern
@@ -83,11 +83,19 @@ class SensorDataset:
         # Build the file index (this only reads metadata, never signal data).
         self._index = H5Index(path, pattern=pattern, date_source=date_source)
 
-        # Devices: those found in the files, optionally restricted by argument.
+        # Devices: those found in the files, optionally restricted and reordered
+        # by the argument (the given order is kept).
         found = list(self._index.devices)
         if devices is not None:
-            found = [d for d in found if d in devices]
+            found = [d for d in devices if d in found]
         self.devices = found
+
+        # Per-sensor labels live on the object so plots don't need them passed.
+        # Default to config.FLOOR_TITLES; settable later as ds.titles = {...}.
+        if titles is not None:
+            self.titles = dict(titles)
+        else:
+            self.titles = dict(getattr(settings, "FLOOR_TITLES", {}) or {})
 
         self.fs = self._index.fs
         self.dt = self._index.dt
@@ -148,8 +156,10 @@ class SensorDataset:
         for dev in self.devices:
             axes = self.axes_map.get(dev, (0, 1, 2))
             n = self.n_samples.get(dev, 0)
-            lines.append("  %-10s -> %-9s  %s samples/axis"
-                         % (dev, str(tuple(axes)), format(n, ",")))
+            label = self.titles.get(dev, "") if hasattr(self, "titles") else ""
+            suffix = ("  |  %s" % label) if label else ""
+            lines.append("  %-10s -> %-9s  %s samples/axis%s"
+                         % (dev, str(tuple(axes)), format(n, ","), suffix))
         lines.append(sep)
 
         total = 0

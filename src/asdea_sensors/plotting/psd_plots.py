@@ -106,7 +106,7 @@ def plot_psd_bands(result, band, figsize=None, xlim=None, ylim=None,
     return _finish(fig, save, "psd_bands")
 
 
-def plot_psd_all(dataset, devices, start_time=None, end_time=None, component="x",
+def plot_psd_all(dataset, devices=None, start_time=None, end_time=None, component="x",
                  nperseg=512, noverlap=256, window="hann", bands=None,
                  baseline=True, fmin=None, fmax=None, group=True,
                  figsize=None, xlim=(0, 25), ylim=None, save=None):
@@ -140,6 +140,7 @@ def plot_psd_all(dataset, devices, start_time=None, end_time=None, component="x"
     import matplotlib.pyplot as plt
     from ..seismic import psd as _psd
 
+    devices = list(dataset.devices) if devices is None else list(devices)
     results = {}
     for device in devices:
         handle = dataset.device(device)

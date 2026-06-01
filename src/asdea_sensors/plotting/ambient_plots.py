@@ -155,7 +155,7 @@ def plot_spectrum(analysis, figsize=None, xlim=None, ylim=None, save=None):
     return _finish(fig, save, "ambient_spectrum")
 
 
-def plot_mean_spectrum_all(dataset, devices, start_time=None, end_time=None,
+def plot_mean_spectrum_all(dataset, devices=None, start_time=None, end_time=None,
                            config=None, component="x", baseline=True, fmin=None,
                            fmax=None, group=True, figsize=None, xlim=(0, 25),
                            ylim=None, save=None):
@@ -189,6 +189,7 @@ def plot_mean_spectrum_all(dataset, devices, start_time=None, end_time=None,
     """
     import matplotlib.pyplot as plt
 
+    devices = list(dataset.devices) if devices is None else list(devices)
     means = {}
     for device in devices:
         handle = dataset.device(device)

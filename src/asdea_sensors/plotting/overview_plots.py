@@ -131,6 +131,7 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
     import matplotlib.dates as mdates
 
     devices = list(devices) if devices is not None else list(dataset.devices)
+    titles = titles if titles is not None else getattr(dataset, "titles", {})
     titles = titles or {}
     n_dev = len(devices)
 

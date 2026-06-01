@@ -65,7 +65,7 @@ def plot_newmark(result, component="x", quantity="PSa", unit=None,
     return _finish(fig, save, "newmark_{}_{}".format(quantity, component))
 
 
-def plot_newmark_all(dataset, devices, start_time=None, end_time=None, component="x",
+def plot_newmark_all(dataset, devices=None, start_time=None, end_time=None, component="x",
                      quantity="PSa", zeta=0.05, max_period=3.0, dT=0.02,
                      factor=1.0, unit=None, baseline=True, fmin=None, fmax=None,
                      group=True, figsize=None, xlim=None, ylim=None, save=None):
@@ -101,6 +101,7 @@ def plot_newmark_all(dataset, devices, start_time=None, end_time=None, component
 
     units = {"PSa": "m/s^2", "Sa": "m/s^2", "PSv": "m/s", "Sv": "m/s", "Sd": "m"}
     ylabel_unit = unit if unit is not None else units.get(quantity, "")
+    devices = list(dataset.devices) if devices is None else list(devices)
 
     specs = {}
     for device in devices:

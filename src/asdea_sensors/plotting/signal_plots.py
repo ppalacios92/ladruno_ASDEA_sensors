@@ -121,7 +121,7 @@ def _read_sigs(dataset, devices, start_time, end_time, baseline, fmin, fmax,
     return sigs
 
 
-def plot_signals_all(dataset, devices, start_time=None, end_time=None,
+def plot_signals_all(dataset, devices=None, start_time=None, end_time=None,
                      components="all", kind="acc", factor=1.0, unit=None,
                      time_axis="absolute", baseline=False, fmin=None, fmax=None,
                      group=False, figsize=None, xlim=None, ylim=None, save=None):
@@ -165,6 +165,7 @@ def plot_signals_all(dataset, devices, start_time=None, end_time=None,
     title_word, prefix, default_unit = labels[kind]
     unit = unit if unit is not None else default_unit
     comps = ("x", "y", "z") if components == "all" else (components,)
+    devices = list(dataset.devices) if devices is None else list(devices)
 
     sigs = _read_sigs(dataset, devices, start_time, end_time, baseline,
                       fmin, fmax, kind)

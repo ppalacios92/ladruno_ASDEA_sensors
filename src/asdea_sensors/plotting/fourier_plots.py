@@ -68,7 +68,7 @@ def plot_fourier(result, component="x", smooth=None, unit=None,
     return _finish(fig, save, "fourier_{}".format(component))
 
 
-def plot_fourier_all(dataset, devices, start_time=None, end_time=None,
+def plot_fourier_all(dataset, devices=None, start_time=None, end_time=None,
                      components=("x", "y", "z"), baseline=True,
                      fmin=0.1, fmax=24.9, smooth=None, bexp=40,
                      overlay_raw=False, group=False, num_frequencies=4,
@@ -112,6 +112,7 @@ def plot_fourier_all(dataset, devices, start_time=None, end_time=None,
 
     if isinstance(components, str):
         components = (components,)
+    devices = list(dataset.devices) if devices is None else list(devices)
 
     def spectra(handle):
         sig = handle.signal(components="all")
