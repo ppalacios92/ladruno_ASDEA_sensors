@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asdea_sensors"
+version = "0.1.0"
+description = "Post-processing of building accelerometer records (.h5): signals, spectra, structural characterization."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "h5py",
+    "obspy",
+    "numba",
+    "psutil",
+    "joblib",
+    "tqdm",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+docs = ["mkdocs", "mkdocs-material"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

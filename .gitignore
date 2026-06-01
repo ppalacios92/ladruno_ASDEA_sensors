@@ -1,0 +1,24 @@
+# Data
+*.h5
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+.env
+
+# MkDocs build
+site/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,48 @@
+# ASDEA_sensors
+
+Post-processing of building accelerometer records stored as `.h5` files.
+
+You give the package a folder path. It indexes the `.h5` files, reads the
+continuous acceleration per sensor, and lets you run signal processing,
+spectra and structural characterization on top of it.
+
+## How to read these docs
+
+Each page documents one source file and is written as an **implementation
+guide**: what the file is for, what to implement, the public API, and which
+original routine to port it from. The skeletons already define the signatures
+and docstrings; the docs tell you what goes inside.
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `core` | Discover files, read lazily, window, resample, cache |
+| `model` | The `SignalData` container and its processing steps |
+| `config` | Single configuration (sensor axes, floors, bands, STA/LTA) |
+| `derive` | Baseline correction, filters, integration (acc -> vel -> disp) |
+| `seismic` | Newmark, RotD, Arias, Fourier, PSD, STFT, peaks, CAV, Housner |
+| `structural` | Transfer function, coherence, modal tracking, interstory drift |
+| `ambient` | STA/LTA, windowing, taper, FFT, Konno-Ohmachi, HVSR, amplification |
+| `batch` | Internal parallel engine (joblib) |
+| `plotting` | Figures, decoupled from the calculations |
+
+## Conventions
+
+- **Units are SI**: acceleration `m/s^2`, velocity `m/s`, displacement `m`.
+  The raw `.h5` acceleration is in `g`, converted to `m/s^2` on read.
+- **Per-sensor access**: `ds.MOF00135.<method>`. Calling `ds.<method>` broadcasts
+  to every device.
+- **Components**: `component="x"|"y"|"z"` returns one result; `"all"` returns a
+  dict per axis.
+- **Cache**: results are stored on the dataset and invalidated automatically when
+  the source signal or parameters change. No manual recompute flag.
+- **Date**: the canonical date of a file is its name `YYYYMMDDHHMMSS`.
+
+## Original routines
+
+The analysis code is ported from two existing packages (copied in, not
+installed as dependencies):
+
+- `EarthquakeSignal` -> Newmark, RotD, Arias, Fourier, baseline correction.
+- `AmbientSoilPeriod` -> STA/LTA, window selection, taper, FFT, Konno-Ohmachi.

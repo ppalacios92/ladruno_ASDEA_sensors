@@ -1,0 +1,67 @@
+site_name: ASDEA_sensors
+site_description: Post-processing of building accelerometer records
+
+theme:
+  name: material
+  palette:
+    primary: blue grey
+    accent: amber
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Core:
+      - SensorDataset: core/sensor_dataset.md
+      - DeviceHandle: core/device_handle.md
+      - H5 index: core/h5_index.md
+      - H5 reader: core/h5_reader.md
+      - Window service: core/window_service.md
+      - Resample service: core/resample_service.md
+      - Parallel reader: core/parallel_reader.md
+      - Cache: core/cache.md
+      - Memory: core/memory.md
+  - Model:
+      - SignalData: model/signal_data.md
+  - Config:
+      - Settings: config/settings.md
+  - Derive:
+      - Baseline: derive/baseline.md
+      - Filters: derive/filters.md
+      - Integrate: derive/integrate.md
+  - Seismic:
+      - Newmark: seismic/newmark.md
+      - RotD: seismic/rotd.md
+      - Arias: seismic/arias.md
+      - Fourier: seismic/fourier.md
+      - PSD: seismic/psd.md
+      - STFT: seismic/stft.md
+      - Peaks: seismic/peaks.md
+      - CAV: seismic/cav.md
+      - Housner: seismic/housner.md
+  - Structural:
+      - Transfer function: structural/transfer_function.md
+      - Coherence: structural/coherence.md
+      - Modal tracking: structural/modal_tracking.md
+      - Interstory drift: structural/interstory_drift.md
+  - Ambient:
+      - STA/LTA: ambient/sta_lta.md
+      - Window selector: ambient/window_selector.md
+      - Taper: ambient/taper.md
+      - FFT windows: ambient/fft_windows.md
+      - Konno-Ohmachi: ambient/konno_ohmachi.md
+      - Average: ambient/average.md
+      - Ambient analysis: ambient/ambient_analysis.md
+      - HVSR: ambient/hvsr.md
+      - Amplification: ambient/amplification.md
+  - Batch:
+      - Processor: batch/processor.md
+  - Plotting:
+      - Overview: plotting/index.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - tables
