@@ -38,7 +38,11 @@ class BatchEngine:
         if self.parallel and self.n_jobs and self.n_jobs != 1:
             # Threads: the work is HDF5 I/O plus numba/numpy that release the
             # GIL, and threads avoid pickling the dataset across processes.
-            from joblib import Parallel, delayed
+            # Fall back to a serial loop when joblib is not installed.
+            try:
+                from joblib import Parallel, delayed
+            except ImportError:
+                return [func(item) for item in items]
             return Parallel(n_jobs=self.n_jobs, prefer="threads")(
                 delayed(func)(item) for item in items)
 

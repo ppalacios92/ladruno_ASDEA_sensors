@@ -43,18 +43,22 @@ def bandpass(acc, dt, fmin, fmax, engine="obspy", order=4, zerophase=True):
         fmax = clipped
 
     if engine == "obspy":
-        from obspy import Trace
-
-        tr = Trace(data=acc.copy())
-        tr.stats.delta = dt
-        tr.filter(
-            "bandpass",
-            freqmin=fmin,
-            freqmax=fmax,
-            corners=order,
-            zerophase=zerophase,
-        )
-        return tr.data
+        try:
+            from obspy import Trace
+        except ImportError:
+            warnings.warn("obspy not available; falling back to the scipy engine")
+            engine = "scipy"
+        else:
+            tr = Trace(data=acc.copy())
+            tr.stats.delta = dt
+            tr.filter(
+                "bandpass",
+                freqmin=fmin,
+                freqmax=fmax,
+                corners=order,
+                zerophase=zerophase,
+            )
+            return tr.data
 
     if engine == "scipy":
         from scipy.signal import butter, filtfilt, lfilter
