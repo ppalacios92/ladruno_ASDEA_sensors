@@ -9,6 +9,13 @@ a new SignalData so the order is up to the caller:
 Internal units are SI: acceleration m/s^2, velocity m/s, displacement m.
 """
 
+import numpy as np
+
+from ..derive import baseline as _baseline
+from ..derive import filters as _filters
+from ..derive import integrate as _integrate
+from ..core import resample_service as _resample
+
 
 class SignalData:
     """Continuous signal of a single device.
@@ -56,17 +63,45 @@ class SignalData:
     @property
     def fs(self):
         """Sampling frequency in Hz."""
-        raise NotImplementedError
+        return 1.0 / self.dt
 
     @property
     def n(self):
         """Number of samples."""
-        raise NotImplementedError
+        return len(self.acc_x)
 
     @property
     def duration(self):
         """Signal duration in seconds."""
-        raise NotImplementedError
+        return self.n * self.dt
+
+    # -- internal helpers ----------------------------------------------
+
+    def _copy(self):
+        """Return a shallow copy of this SignalData (arrays shared)."""
+        new = SignalData(
+            device=self.device,
+            acc_x=self.acc_x,
+            acc_y=self.acc_y,
+            acc_z=self.acc_z,
+            time=self.time,
+            dt=self.dt,
+            t_abs=self.t_abs,
+            axes=self.axes,
+        )
+        new.vel_x, new.vel_y, new.vel_z = self.vel_x, self.vel_y, self.vel_z
+        new.disp_x, new.disp_y, new.disp_z = self.disp_x, self.disp_y, self.disp_z
+        return new
+
+    def _selected(self, components):
+        """Resolve a components spec into a list of present axis names."""
+        if components == "all":
+            names = ["x", "y", "z"]
+        elif isinstance(components, str):
+            names = [components]
+        else:
+            names = list(components)
+        return [c for c in names if getattr(self, "acc_" + c) is not None]
 
     # -- decoupled processing steps (each returns a new SignalData) -----
 
@@ -79,7 +114,12 @@ class SignalData:
             "polynomial" removes the drift with the polynomial correction.
         components : {"x", "y", "z", "all"}, default "all"
         """
-        raise NotImplementedError
+        new = self._copy()
+        for c in self._selected(components):
+            acc = getattr(self, "acc_" + c)
+            setattr(new, "acc_" + c,
+                    _baseline.baseline_correct(acc, self.dt, method))
+        return new
 
     def filter(self, fmin, fmax, engine="obspy", order=4, zerophase=True,
                components="all"):
@@ -95,7 +135,14 @@ class SignalData:
         zerophase : bool, default True
         components : {"x", "y", "z", "all"}, default "all"
         """
-        raise NotImplementedError
+        new = self._copy()
+        for c in self._selected(components):
+            acc = getattr(self, "acc_" + c)
+            setattr(new, "acc_" + c,
+                    _filters.bandpass(acc, self.dt, fmin, fmax,
+                                      engine=engine, order=order,
+                                      zerophase=zerophase))
+        return new
 
     def derive(self, method="trapezoid", remove_mean=True, components="all"):
         """Integrate the current acceleration to velocity and displacement.
@@ -108,15 +155,35 @@ class SignalData:
             Remove the mean before integrating to limit drift.
         components : {"x", "y", "z", "all"}, default "all"
         """
-        raise NotImplementedError
+        new = self._copy()
+        for c in self._selected(components):
+            acc = getattr(self, "acc_" + c)
+            vel, disp = _integrate.derive(acc, self.dt, remove_mean=remove_mean)
+            setattr(new, "vel_" + c, vel)
+            setattr(new, "disp_" + c, disp)
+        return new
 
     def resample(self, dt=None, fs=None):
         """Return a new SignalData resampled to a target ``dt`` or ``fs``."""
-        raise NotImplementedError
+        dt_out = _resample.target_dt(dt=dt, fs=fs)
+        new = self._copy()
+        for c in ["x", "y", "z"]:
+            acc = getattr(self, "acc_" + c)
+            if acc is not None:
+                setattr(new, "acc_" + c,
+                        _resample.resample_signal(acc, self.dt, dt_out=dt_out))
+        # Drop derived quantities: they no longer match the new acceleration.
+        new.vel_x = new.vel_y = new.vel_z = None
+        new.disp_x = new.disp_y = new.disp_z = None
+        new.dt = dt_out
+        n_out = new.n
+        new.time = np.arange(n_out) * dt_out
+        new.t_abs = None
+        return new
 
     def component(self, name):
         """Return the acceleration array for "x", "y" or "z"."""
-        raise NotImplementedError
+        return getattr(self, "acc_" + name)
 
     # -- analysis entry point ------------------------------------------
 
@@ -130,4 +197,5 @@ class SignalData:
             f1, f2, ...).
         component : {"x", "y", "z"}, default "x"
         """
-        raise NotImplementedError
+        from ..ambient.ambient_analysis import AmbientAnalysis
+        return AmbientAnalysis(self.component(component), config)

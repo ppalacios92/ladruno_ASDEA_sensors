@@ -31,4 +31,15 @@ class BatchEngine:
         items : iterable
             Items to process (e.g. device ids, or time blocks).
         """
-        raise NotImplementedError
+        items = list(items)
+        if not items:
+            return []
+
+        if self.parallel and self.n_jobs and self.n_jobs != 1:
+            # Threads: the work is HDF5 I/O plus numba/numpy that release the
+            # GIL, and threads avoid pickling the dataset across processes.
+            from joblib import Parallel, delayed
+            return Parallel(n_jobs=self.n_jobs, prefer="threads")(
+                delayed(func)(item) for item in items)
+
+        return [func(item) for item in items]

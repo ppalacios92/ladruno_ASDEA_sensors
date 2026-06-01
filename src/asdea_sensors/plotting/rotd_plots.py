@@ -1,6 +1,22 @@
 """Plots of the RotD spectra."""
 
 
+def _finish(fig, save, default_name):
+    """Show the figure or save it under a format/path."""
+    import matplotlib.pyplot as plt
+
+    if save is None:
+        plt.show()
+        return None
+    if save.lower() in ("png", "svg", "pdf", "jpg", "jpeg"):
+        fname = "{}.{}".format(default_name, save.lower())
+    else:
+        fname = save
+    fig.savefig(fname, bbox_inches="tight")
+    plt.close(fig)
+    return fname
+
+
 def plot_rotd(result, rotd=(0, 50, 100), save=None):
     """Plot one or more RotD percentile spectra.
 
@@ -12,4 +28,22 @@ def plot_rotd(result, rotd=(0, 50, 100), save=None):
         Percentiles to draw.
     save : str or None, default None
     """
-    raise NotImplementedError
+    import matplotlib.pyplot as plt
+
+    T = result["T"]
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    for n in rotd:
+        key = "ROTD{}".format(n)
+        if key not in result:
+            continue
+        ax.plot(T, result[key], lw=1.3, label="RotD{}".format(n))
+
+    ax.set_xlabel("Period T [s]")
+    ax.set_ylabel("PSa [m/s^2]")
+    ax.set_title("RotD percentile spectra", fontweight="bold")
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    fig.tight_layout()
+
+    return _finish(fig, save, "rotd_spectra")
