@@ -42,6 +42,10 @@ all of its inputs.
 - **Cache**: results are stored on the dataset and invalidated automatically when
   the source signal or parameters change. No manual recompute flag.
 - **Date**: the canonical date of a file is its name `YYYYMMDDHHMMSS`.
+- **Internal prints**: every method prints a short line of what it did (parameters
+  used, shapes, whether it came from cache), in the ShakerMakerResults style,
+  toggled by `ds.verbose`. ASCII only, e.g.
+  `[newmark] MOF00135 comp=x zeta=0.05 Tmax=5.01 dT=0.01 -> 501 periods (cached)`.
 
 ## Original routines
 
