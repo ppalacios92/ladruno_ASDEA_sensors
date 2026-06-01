@@ -46,23 +46,55 @@ def _minmax(values, times, n_bins):
     return xs, ys
 
 
-def _read_device(dataset, device, target):
-    """Read one device across all files and return (t, x, y, z) decimated.
+def _read_device(dataset, device, target, window=None):
+    """Read one device and return (t, x, y, z) decimated.
 
-    Reads each file fully (a few MB), min-max decimates it to a share of
-    ``target`` proportional to its length, then concatenates. Peak memory is
-    one file; the result is float16.
+    Without a window: streams every file, min-max decimating each to a share of
+    ``target`` (peak memory is one file). With a window: reads only the files
+    overlapping it, trims to the exact bounds, then decimates the result.
     """
     import h5py
 
     axes = tuple(dataset.axes_map.get(device, (0, 1, 2)))
     dt = dataset.dt
-    total = max(1, dataset.n_samples.get(device, 0))
+    key = "Devices/%s/Acceleration" % device
 
+    # Windowed: read only the overlapping files (few), concatenate, trim, decimate.
+    if window is not None:
+        w0, w1 = _to_dt64(window[0]), _to_dt64(window[1])
+        paths = set(dataset._index.in_range(window[0], window[1]))
+        acc_parts, t_parts = [], []
+        for file_dt, path in dataset._index.files:
+            if path not in paths:
+                continue
+            with h5py.File(path, "r") as f:
+                if key not in f:
+                    continue
+                arr = f[key][:, :]
+            n = arr.shape[0]
+            if n == 0:
+                continue
+            cols = axes if max(axes) < arr.shape[1] else (0, 1, 2)
+            times = _to_dt64(file_dt) + (np.arange(n) * dt * 1e9).astype("timedelta64[ns]")
+            acc_parts.append(arr[:, cols])
+            t_parts.append(times)
+        if not acc_parts:
+            empty = np.array([], dtype=np.float16)
+            return np.array([], dtype="datetime64[ns]"), empty, empty, empty
+        acc = np.concatenate(acc_parts)
+        t = np.concatenate(t_parts)
+        m = (t >= w0) & (t <= w1)
+        acc, t = acc[m], t[m]
+        tx, x = _minmax(acc[:, 0], t, target)
+        _, y = _minmax(acc[:, 1], t, target)
+        _, z = _minmax(acc[:, 2], t, target)
+        return tx, x, y, z
+
+    # Whole record: stream file by file.
+    total = max(1, dataset.n_samples.get(device, 0))
     t_parts, x_parts, y_parts, z_parts = [], [], [], []
     for file_dt, path in dataset._index.files:
         with h5py.File(path, "r") as f:
-            key = "Devices/%s/Acceleration" % device
             if key not in f:
                 continue
             arr = f[key][:, :]                       # one file in memory
@@ -157,12 +189,21 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
     # three rows of that sensor.
     colors = getattr(dataset, "device_colors", {}) or {}
 
+    # If the dataset is windowed (ds.window/get_window), read only that window
+    # and zoom to it; on a full dataset the read stays full and `window` just
+    # marks a candidate range with red lines (the "pick a window" use case).
+    read_window = getattr(dataset, "_default_window", None)
+    if window is None:
+        window = read_window
+    if xlim is None and read_window is not None:
+        xlim = read_window
+
     w0 = _to_dt64(window[0]) if window else None
     w1 = _to_dt64(window[1]) if window else None
     fmt = mdates.DateFormatter("%Y-%m-%d %H:%M:%S")
 
     for j, device in enumerate(devices):
-        t, x, y, z = _read_device(dataset, device, target)
+        t, x, y, z = _read_device(dataset, device, target, window=read_window)
         series = {"x": x, "y": y, "z": z}
         label = titles.get(device, device)
         color = colors.get(device, "C%d" % (j % 10))
