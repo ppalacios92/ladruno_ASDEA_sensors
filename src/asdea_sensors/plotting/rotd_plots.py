@@ -1,5 +1,7 @@
 """Plots of the RotD spectra."""
 
+from . import _panels
+
 
 def _finish(fig, save, default_name):
     """Show the figure or save it under a format/path."""
@@ -58,51 +60,36 @@ def plot_rotd(result, rotd=(0, 50, 100), figsize=None, xlim=None, ylim=None,
     return _finish(fig, save, "rotd_spectra")
 
 
-def plot_rotd_all(dataset, results, rotd=50, figsize=None, xlim=None,
-                  ylim=None, save=None):
-    """Plot one precomputed RotD percentile per sensor, overlaid (no compute).
+def plot_rotd_all(dataset, results, rotd=50, layout="auto", group=None,
+                  figsize=None, xlim=None, ylim=None, save=None):
+    """Plot precomputed RotD spectra (no compute here); layout from shape.
 
-    The spectra are computed on the object and this function only draws them::
+    RotD has one series per sensor (the rotated percentile), so::
 
-        results = ds.rotd(comp_x="x", comp_y="y", rotd=50,
-                         angle_step=15, max_period=3.0, dT=0.02)
-        plot_rotd_all(ds, results, rotd=50)
+        results = ds.rotd(comp_x="x", comp_y="y", rotd=50, angle_step=15)
+        plot_rotd_all(ds, results, rotd=50)                 # sensors overlaid
+        plot_rotd_all(ds, results, rotd=50, layout="grid")  # one panel per sensor
+        plot_rotd_all(ds, ds.MOF00135.rotd(rotd=50), rotd=50)   # one sensor, one curve
 
     Parameters
     ----------
     dataset : SensorDataset
-        Source object; used only for the device order and colors.
-    results : dict
-        Output of ``dataset.rotd(rotd=..., ...)``, i.e. ``{device: rotd_result}``.
+        Source object (device order, colors, titles).
+    results : dict or result
+        ``ds.rotd(...)`` -> ``{device: rotd_result}``, or a single result.
     rotd : int, default 50
-        Which percentile key (``ROTD<rotd>``) to draw; must match the one the
-        results were computed with.
+        Which percentile key (``ROTD<rotd>``) to draw; must match the compute.
+    layout : {"auto", "grid", "overlay"}, default "auto"
+    group : bool or None
+        Back-compat alias (``True`` -> overlay, ``False`` -> grid).
     figsize, xlim, ylim, save
         Plot controls.
-
-    Returns
-    -------
-    None or str
     """
-    import matplotlib.pyplot as plt
-
-    devices = [d for d in dataset.devices if d in results]
-    colors = getattr(dataset, "device_colors", {}) or {}
     key = "ROTD%d" % rotd
-    fig, ax = plt.subplots(figsize=figsize or (10, 5))
-    for k, device in enumerate(devices):
-        r = results[device]
-        ax.plot(r["T"], r[key], lw=1.1,
-                color=colors.get(device, "C%d" % (k % 10)), label=device)
-
-    ax.set_xlabel("Period T [s]")
-    ax.set_ylabel("RotD%d PSa [m/s^2]" % rotd)
-    ax.set_title("RotD%d - %d sensors" % (rotd, len(devices)), fontweight="bold")
-    ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=8)
-    if xlim is not None:
-        ax.set_xlim(xlim)
-    if ylim is not None:
-        ax.set_ylim(ylim)
-    fig.tight_layout()
-    return _finish(fig, save, "rotd_all_%d" % rotd)
+    return _panels.draw_analysis(
+        dataset, results,
+        curve=lambda r: (r["T"], r[key]),
+        layout=layout, group=group, yscale="linear",
+        xlabel="Period T [s]", ylabel_unit="m/s^2",
+        title_word="RotD%d PSa" % rotd, name="rotd_all_%d" % rotd,
+        figsize=figsize, xlim=xlim, ylim=ylim, save=save)

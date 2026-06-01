@@ -1,5 +1,7 @@
 """Plots for the ambient analysis (STA/LTA, windows, taper, spectrum)."""
 
+from . import _panels
+
 
 def _finish(fig, save, default_name):
     """Show the figure or save it under a format/path."""
@@ -155,78 +157,48 @@ def plot_spectrum(analysis, figsize=None, xlim=None, ylim=None, save=None):
     return _finish(fig, save, "ambient_spectrum")
 
 
-def plot_mean_spectrum_all(dataset, means, component="x", group=True,
-                           figsize=None, xlim=(0, 25), ylim=None, save=None):
-    """Plot precomputed ambient mean spectra of several sensors (no compute).
+def plot_mean_spectrum_all(dataset, means, component="x", layout="auto",
+                           group=None, figsize=None, xlim=(0, 25), ylim=None,
+                           save=None):
+    """Plot precomputed ambient mean spectra (no compute here); layout from shape.
 
-    The mean spectra are computed on the object and this function only draws
-    them::
+    One series per sensor (the mean spectrum), so::
 
         means = ds.ambient_mean(config, component="x")
-        plot_mean_spectrum_all(ds, means, component="x", group=True)
+        plot_mean_spectrum_all(ds, means)                 # sensors overlaid
+        plot_mean_spectrum_all(ds, means, layout="grid")  # one panel per sensor
+        plot_mean_spectrum_all(ds, ds.MOF00135.ambient_mean(config))   # one sensor
 
     Parameters
     ----------
     dataset : SensorDataset
-        Source object; used only for the device order and colors.
-    means : dict
-        Output of ``dataset.ambient_mean(config, component)``, i.e.
-        ``{device: {"freqs": ..., "spectrum": ..., "f_dom": ...}}``.
+        Source object (device order, colors, titles).
+    means : dict or result
+        ``ds.ambient_mean(config, component)`` ->
+        ``{device: {"freqs", "spectrum", "f_dom"}}``, or a single result.
     component : {"x", "y", "z"}, default "x"
         Label only (which component the means were computed for).
-    group : bool, default True
-        ``True`` overlays the mean spectra of all devices; ``False`` is one
-        figure per device.
+    layout : {"auto", "grid", "overlay"}, default "auto"
+    group : bool or None
+        Back-compat alias (``True`` -> overlay, ``False`` -> grid).
     figsize, xlim, ylim, save
         Plot controls (xlim defaults to 0-25 Hz).
 
     Returns
     -------
-    dict
-        ``{device: dominant_frequency_Hz}``.
+    dict or float
+        ``{device: dominant_frequency_Hz}`` (multi-sensor) or the single f_dom.
     """
-    import matplotlib.pyplot as plt
+    _panels.draw_analysis(
+        dataset, means,
+        curve=lambda r: (r["freqs"], r["spectrum"]),
+        layout=layout, group=group, yscale="linear",
+        xlabel="Frequency [Hz]", ylabel_unit="m/s^2 . s",
+        title_word="Mean amplitude", name="ambient_mean_all",
+        figsize=figsize, xlim=xlim, ylim=ylim, save=save)
 
-    devices = [d for d in dataset.devices if d in means]
-    colors = getattr(dataset, "device_colors", {}) or {}
-    dom = {d: means[d]["f_dom"] for d in devices}
-
-    if group:
-        fig, ax = plt.subplots(figsize=figsize or (11, 5))
-        for k, device in enumerate(devices):
-            m = means[device]
-            ax.plot(m["freqs"], m["spectrum"], lw=1.0,
-                    color=colors.get(device, "C%d" % (k % 10)),
-                    label="%s (f0=%.2f Hz)" % (device, m["f_dom"]))
-        ax.set_xlabel("Frequency [Hz]")
-        ax.set_ylabel("Mean amplitude [m/s^2 . s]")
-        ax.set_title("Ambient mean spectra - %s" % component, fontweight="bold")
-        ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=8)
-        if xlim is not None:
-            ax.set_xlim(xlim)
-        if ylim is not None:
-            ax.set_ylim(ylim)
-        fig.tight_layout()
-        _finish(fig, save, "ambient_mean_all")
-        return dom
-
-    for device in devices:
-        m = means[device]
-        fig, ax = plt.subplots(figsize=figsize or (9, 4))
-        ax.plot(m["freqs"], m["spectrum"], lw=1.2, color="C0")
-        ax.axvline(m["f_dom"], color="C3", ls="--", lw=1.0,
-                   label="f0 = %.2f Hz" % m["f_dom"])
-        ax.set_xlabel("Frequency [Hz]")
-        ax.set_ylabel("Mean amplitude [m/s^2 . s]")
-        ax.set_title("Ambient mean spectrum - %s %s" % (device, component),
-                     fontweight="bold")
-        ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=8)
-        if xlim is not None:
-            ax.set_xlim(xlim)
-        if ylim is not None:
-            ax.set_ylim(ylim)
-        fig.tight_layout()
-        _finish(fig, save, "ambient_mean_%s" % device)
-    return dom
+    if isinstance(means, dict) and any(d in means for d in dataset.devices):
+        return {d: means[d]["f_dom"] for d in dataset.devices if d in means}
+    if isinstance(means, dict) and "f_dom" in means:
+        return means["f_dom"]
+    return None

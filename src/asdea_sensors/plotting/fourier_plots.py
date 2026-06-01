@@ -1,5 +1,7 @@
 """Plots of the Fourier amplitude spectrum."""
 
+from . import _panels
+
 
 def _finish(fig, save, default_name):
     """Show the figure or save it under a format/path."""
@@ -67,90 +69,43 @@ def plot_fourier(result, component="x", unit=None,
     return _finish(fig, save, "fourier_{}".format(component))
 
 
-def plot_fourier_all(dataset, spectra, components=("x", "y", "z"),
-                     group=False, figsize=None, xlim=(0, 25), ylim=None,
+def plot_fourier_all(dataset, spectra, components="all", layout="auto",
+                     group=None, figsize=None, xlim=(0, 25), ylim=None,
                      save=None):
-    """Plot precomputed Fourier spectra of several sensors (no compute here).
+    """Plot precomputed Fourier spectra (no compute here); layout from shape.
 
-    The spectra are computed on the object and this function only draws them::
+    The spectra are computed on the object and this only draws them::
 
-        spectra = ds.fourier(component="all", num_frequencies=4,
-                             smooth="konno", bexp=40)
-        plot_fourier_all(ds, spectra, group=True)
+        spectra = ds.fourier(component="all", num_frequencies=4, smooth="konno")
+        plot_fourier_all(ds, spectra)                 # grid: rows x/y/z, cols sensors
+        plot_fourier_all(ds, spectra, layout="overlay")   # sensors overlaid per row
+        plot_fourier_all(ds, ds.MOF00135.fourier(component="all"))  # one sensor, comps overlaid
 
     Parameters
     ----------
     dataset : SensorDataset
-        Source object; used only for the device order, colors and titles.
+        Source object (device order, colors, titles).
     spectra : dict
-        Output of ``dataset.fourier(component="all", ...)``, i.e.
-        ``{device: {"x": result, "y": result, "z": result}}``.
-    components : sequence of str, default ("x", "y", "z")
-        Components to show (one row each).
-    group : bool, default False
-        ``False`` -> one figure per device. ``True`` -> overlay all devices,
-        one row per component.
+        ``ds.fourier(component="all")`` -> ``{device: {x, y, z: result}}``;
+        ``ds.MOF00135.fourier(component="all")`` -> ``{x, y, z: result}``;
+        or a single component variant. See ``_panels`` for the shapes.
+    components : str or sequence, default "all"
+        Components to include.
+    layout : {"auto", "grid", "overlay"}, default "auto"
+    group : bool or None
+        Back-compat alias (``True`` -> overlay, ``False`` -> grid).
     figsize, xlim, ylim, save
         Plot controls (xlim defaults to 0-25 Hz).
-
-    Returns
-    -------
-    list or str or None
     """
-    import matplotlib.pyplot as plt
+    def mark(ax, res, color):
+        dom_f, dom_p = res.get("dom_freqs"), res.get("dom_peaks")
+        if dom_f is not None and dom_p is not None:
+            ax.plot(dom_f, dom_p, "rv", ms=6)
 
-    if isinstance(components, str):
-        components = (components,)
-    devices = [d for d in dataset.devices if d in spectra]
-    colors = getattr(dataset, "device_colors", {}) or {}
-
-    if not group:
-        paths = []
-        for j, device in enumerate(devices):
-            color = colors.get(device, "C%d" % (j % 10))
-            fig, axes = plt.subplots(len(components), 1, sharex=True,
-                                     figsize=figsize or (10, 2.6 * len(components)))
-            if len(components) == 1:
-                axes = [axes]
-            for ax, c in zip(axes, components):
-                res = spectra[device][c]
-                ax.semilogy(res["freqs"], res["spectrum"] + 1e-20,
-                            lw=0.9, color=color)
-                dom_f = res.get("dom_freqs")
-                dom_p = res.get("dom_peaks")
-                if dom_f is not None and dom_p is not None:
-                    ax.plot(dom_f, dom_p, "rv", ms=6)
-                ax.set_ylabel("%s\n[m/s^2 . s]" % c.upper())
-                ax.grid(True, alpha=0.3)
-                if xlim is not None:
-                    ax.set_xlim(xlim)
-                if ylim is not None:
-                    ax.set_ylim(ylim)
-            axes[-1].set_xlabel("Frequency [Hz]")
-            axes[0].set_title("Fourier spectrum - %s" % device, fontweight="bold")
-            fig.tight_layout()
-            paths.append(_finish(fig, save, "fourier_all_%s" % device))
-        return paths
-
-    # group=True: overlay devices, one row per component.
-    fig, axes = plt.subplots(len(components), 1, sharex=True,
-                             figsize=figsize or (11, 2.6 * len(components)))
-    if len(components) == 1:
-        axes = [axes]
-    for ax, c in zip(axes, components):
-        for j, device in enumerate(devices):
-            res = spectra[device][c]
-            ax.semilogy(res["freqs"], res["spectrum"] + 1e-20, lw=0.8,
-                        color=colors.get(device, "C%d" % (j % 10)), label=device)
-        ax.set_ylabel("%s\n[m/s^2 . s]" % c.upper())
-        ax.grid(True, alpha=0.3)
-        if xlim is not None:
-            ax.set_xlim(xlim)
-        if ylim is not None:
-            ax.set_ylim(ylim)
-    axes[0].legend(loc="upper right", ncol=len(devices), fontsize=8)
-    axes[-1].set_xlabel("Frequency [Hz]")
-    axes[0].set_title("Fourier spectrum - %d sensors" % len(devices),
-                      fontweight="bold")
-    fig.tight_layout()
-    return _finish(fig, save, "fourier_all")
+    return _panels.draw_analysis(
+        dataset, spectra,
+        curve=lambda r: (r["freqs"], r["spectrum"] + 1e-20),
+        components=components, layout=layout, group=group, yscale="log",
+        xlabel="Frequency [Hz]", ylabel_unit="m/s^2 . s",
+        title_word="Fourier amplitude", name="fourier_all", mark=mark,
+        figsize=figsize, xlim=xlim, ylim=ylim, save=save)

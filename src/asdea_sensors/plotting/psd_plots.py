@@ -1,5 +1,7 @@
 """Plots of the PSD and the band energy."""
 
+from . import _panels
+
 
 def _finish(fig, save, default_name):
     """Show the figure or save it under a format/path."""
@@ -106,60 +108,36 @@ def plot_psd_bands(result, band, figsize=None, xlim=None, ylim=None,
     return _finish(fig, save, "psd_bands")
 
 
-def plot_psd_all(dataset, results, component="x", group=True,
+def plot_psd_all(dataset, results, components="all", layout="auto", group=None,
                  figsize=None, xlim=(0, 25), ylim=None, save=None):
-    """Plot precomputed Welch PSDs of several sensors (no compute here).
+    """Plot precomputed Welch PSDs (no compute here); layout from shape.
 
-    The PSDs are computed on the object and this function only draws them::
+    ::
 
-        results = ds.psd(component="x", nperseg=512, noverlap=256)
-        plot_psd_all(ds, results, component="x", group=True)
-        plot_psd_bands(results, band=(2.0, 8.0))
+        results = ds.psd(component="all", nperseg=512)
+        plot_psd_all(ds, results)                 # grid: rows x/y/z, cols sensors
+        plot_psd_all(ds, ds.psd(component="x"), layout="overlay")   # sensors overlaid
+        plot_psd_all(ds, ds.MOF00135.psd(component="all"))          # one sensor, comps overlaid
+        plot_psd_bands(results, band=(2.0, 8.0))  # band energy bar chart
 
     Parameters
     ----------
     dataset : SensorDataset
-        Source object; used only for the device order and colors.
+        Source object (device order, colors, titles).
     results : dict
-        Output of ``dataset.psd(component=..., ...)``, i.e.
-        ``{device: psd_result}``.
-    component : str, default "x"
-        Label only (which component the results were computed for).
-    group : bool, default True
-        ``True`` overlays every device; ``False`` one figure each.
+        ``ds.psd(component="all")`` -> ``{device: {x, y, z: result}}`` or a
+        single-component / single-sensor variant.
+    components : str or sequence, default "all"
+    layout : {"auto", "grid", "overlay"}, default "auto"
+    group : bool or None
+        Back-compat alias (``True`` -> overlay, ``False`` -> grid).
     figsize, xlim, ylim, save
         Plot controls (xlim defaults to 0-25 Hz).
-
-    Returns
-    -------
-    None or str or list
     """
-    import matplotlib.pyplot as plt
-
-    devices = [d for d in dataset.devices if d in results]
-    colors = getattr(dataset, "device_colors", {}) or {}
-
-    if group:
-        fig, ax = plt.subplots(figsize=figsize or (10, 5))
-        for k, device in enumerate(devices):
-            r = results[device]
-            ax.semilogy(r["f"], r["Pxx"] + 1e-30, lw=0.9,
-                        color=colors.get(device, "C%d" % (k % 10)), label=device)
-        ax.set_xlabel("Frequency [Hz]")
-        ax.set_ylabel("PSD [(m/s^2)^2/Hz]")
-        ax.set_title("PSD - %d sensors - component %s" % (len(devices), component),
-                     fontweight="bold")
-        ax.grid(True, which="both", alpha=0.3)
-        ax.legend(fontsize=8)
-        if xlim is not None:
-            ax.set_xlim(xlim)
-        if ylim is not None:
-            ax.set_ylim(ylim)
-        fig.tight_layout()
-        return _finish(fig, save, "psd_all")
-
-    paths = []
-    for device in devices:
-        paths.append(plot_psd(results[device], component=component,
-                              figsize=figsize, xlim=xlim, ylim=ylim, save=save))
-    return paths
+    return _panels.draw_analysis(
+        dataset, results,
+        curve=lambda r: (r["f"], r["Pxx"] + 1e-30),
+        components=components, layout=layout, group=group, yscale="log",
+        xlabel="Frequency [Hz]", ylabel_unit="(m/s^2)^2/Hz",
+        title_word="PSD", name="psd_all",
+        figsize=figsize, xlim=xlim, ylim=ylim, save=save)

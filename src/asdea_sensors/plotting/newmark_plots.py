@@ -1,5 +1,7 @@
 """Plots of the Newmark response spectra."""
 
+from . import _panels
+
 
 def _finish(fig, save, default_name):
     """Show the figure or save it under a format/path."""
@@ -65,67 +67,42 @@ def plot_newmark(result, component="x", quantity="PSa", unit=None,
     return _finish(fig, save, "newmark_{}_{}".format(quantity, component))
 
 
-def plot_newmark_all(dataset, specs, component="x", quantity="PSa", unit=None,
-                     group=True, figsize=None, xlim=None, ylim=None, save=None):
-    """Plot precomputed Newmark spectra of several sensors (no compute here).
+def plot_newmark_all(dataset, specs, components="all", quantity="PSa",
+                     unit=None, layout="auto", group=None, figsize=None,
+                     xlim=None, ylim=None, save=None):
+    """Plot precomputed Newmark spectra (no compute here); layout from shape.
 
-    The spectra are computed on the object and this function only draws them::
+    ::
 
-        specs = ds.newmark(component="x", zeta=0.05, max_period=3.0, dT=0.02)
-        plot_newmark_all(ds, specs, component="x", quantity="PSa", group=True)
+        specs = ds.newmark(component="all", max_period=3.0, dT=0.02)
+        plot_newmark_all(ds, specs, quantity="PSa")          # grid: rows x/y/z, cols sensors
+        plot_newmark_all(ds, ds.newmark(component="x"), layout="overlay")   # sensors overlaid
+        plot_newmark_all(ds, ds.MOF00135.newmark(component="all"))          # one sensor, comps overlaid
 
     Parameters
     ----------
     dataset : SensorDataset
-        Source object; used only for the device order and colors.
+        Source object (device order, colors, titles).
     specs : dict
-        Output of ``dataset.newmark(component=..., ...)``, i.e.
-        ``{device: newmark_result}``.
-    component : str, default "x"
-        Label only (which component the spectra were computed for).
+        ``ds.newmark(component="all")`` -> ``{device: {x, y, z: result}}`` or a
+        single-component / single-sensor variant.
+    components : str or sequence, default "all"
     quantity : {"PSa", "PSv", "Sd", "Sv", "Sa"}, default "PSa"
         Which curve of the result to draw.
     unit : str or None, default None
-        Y-axis unit label; if None the default SI unit for ``quantity`` is used.
-    group : bool, default True
-        ``True`` overlays every device on one axes; ``False`` one figure each.
+        Y-axis unit; if None the default SI unit for ``quantity`` is used.
+    layout : {"auto", "grid", "overlay"}, default "auto"
+    group : bool or None
+        Back-compat alias (``True`` -> overlay, ``False`` -> grid).
     figsize, xlim, ylim, save
         Plot controls.
-
-    Returns
-    -------
-    list or str or None
     """
-    import matplotlib.pyplot as plt
-
     units = {"PSa": "m/s^2", "Sa": "m/s^2", "PSv": "m/s", "Sv": "m/s", "Sd": "m"}
     ylabel_unit = unit if unit is not None else units.get(quantity, "")
-    devices = [d for d in dataset.devices if d in specs]
-    colors = getattr(dataset, "device_colors", {}) or {}
-
-    if not group:
-        paths = []
-        for device in devices:
-            paths.append(plot_newmark(specs[device], component=component,
-                                      quantity=quantity, unit=ylabel_unit,
-                                      figsize=figsize, xlim=xlim, ylim=ylim,
-                                      save=save))
-        return paths
-
-    fig, ax = plt.subplots(figsize=figsize or (10, 5))
-    for k, device in enumerate(devices):
-        s = specs[device]
-        ax.plot(s["T"], s[quantity], lw=1.1,
-                color=colors.get(device, "C%d" % (k % 10)), label=device)
-    ax.set_xlabel("Period T [s]")
-    ax.set_ylabel("%s [%s]" % (quantity, ylabel_unit))
-    ax.set_title("Newmark %s - %d sensors - component %s"
-                 % (quantity, len(devices), component), fontweight="bold")
-    ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=8)
-    if xlim is not None:
-        ax.set_xlim(xlim)
-    if ylim is not None:
-        ax.set_ylim(ylim)
-    fig.tight_layout()
-    return _finish(fig, save, "newmark_all_%s" % quantity)
+    return _panels.draw_analysis(
+        dataset, specs,
+        curve=lambda r: (r["T"], r[quantity]),
+        components=components, layout=layout, group=group, yscale="linear",
+        xlabel="Period T [s]", ylabel_unit=ylabel_unit, title_word=quantity,
+        name="newmark_all_%s" % quantity,
+        figsize=figsize, xlim=xlim, ylim=ylim, save=save)
