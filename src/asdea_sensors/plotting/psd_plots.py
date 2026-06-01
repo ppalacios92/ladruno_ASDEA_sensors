@@ -141,6 +141,7 @@ def plot_psd_all(dataset, devices=None, start_time=None, end_time=None, componen
     from ..seismic import psd as _psd
 
     devices = list(dataset.devices) if devices is None else list(devices)
+    colors = getattr(dataset, "device_colors", {}) or {}
     results = {}
     for device in devices:
         handle = dataset.device(device)
@@ -160,7 +161,7 @@ def plot_psd_all(dataset, devices=None, start_time=None, end_time=None, componen
         for k, device in enumerate(devices):
             r = results[device]
             ax.semilogy(r["f"], r["Pxx"] + 1e-30, lw=0.9,
-                        color="C%d" % (k % 10), label=device)
+                        color=colors.get(device, "C%d" % (k % 10)), label=device)
         ax.set_xlabel("Frequency [Hz]")
         ax.set_ylabel("PSD [(m/s^2)^2/Hz]")
         ax.set_title("PSD - %d sensors - component %s" % (len(devices), component),

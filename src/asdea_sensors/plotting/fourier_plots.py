@@ -113,6 +113,7 @@ def plot_fourier_all(dataset, devices=None, start_time=None, end_time=None,
     if isinstance(components, str):
         components = (components,)
     devices = list(dataset.devices) if devices is None else list(devices)
+    colors = getattr(dataset, "device_colors", {}) or {}
 
     def spectra(handle):
         sig = handle.signal(components="all")
@@ -172,7 +173,7 @@ def plot_fourier_all(dataset, devices=None, start_time=None, end_time=None,
         for k, device in enumerate(devices):
             fr = filt_by_dev[device][c]
             ax.semilogy(fr["freqs"], fr["spectrum"] + 1e-20, lw=0.8,
-                        color="C%d" % (k % 10), label=device)
+                        color=colors.get(device, "C%d" % (k % 10)), label=device)
         ax.set_ylabel("%s\n[m/s^2 . s]" % c.upper())
         ax.grid(True, alpha=0.3)
         if xlim is not None:

@@ -166,6 +166,7 @@ def plot_signals_all(dataset, devices=None, start_time=None, end_time=None,
     unit = unit if unit is not None else default_unit
     comps = ("x", "y", "z") if components == "all" else (components,)
     devices = list(dataset.devices) if devices is None else list(devices)
+    colors = getattr(dataset, "device_colors", {}) or {}
 
     sigs = _read_sigs(dataset, devices, start_time, end_time, baseline,
                       fmin, fmax, kind)
@@ -193,8 +194,8 @@ def plot_signals_all(dataset, devices=None, start_time=None, end_time=None,
             t = sig.t_abs if use_abs else sig.time
             data = getattr(sig, "{}_{}".format(prefix, comp), None)
             if data is not None:
-                ax.plot(t, data * factor, lw=0.7, color="C%d" % (k % 10),
-                        label=device)
+                ax.plot(t, data * factor, lw=0.7,
+                        color=colors.get(device, "C%d" % (k % 10)), label=device)
         ax.set_ylabel("{} {}\n[{}]".format(comp.upper(), title_word, unit))
         ax.grid(True, alpha=0.3)
         if xlim is not None:

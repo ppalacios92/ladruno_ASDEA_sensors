@@ -190,6 +190,7 @@ def plot_mean_spectrum_all(dataset, devices=None, start_time=None, end_time=None
     import matplotlib.pyplot as plt
 
     devices = list(dataset.devices) if devices is None else list(devices)
+    colors = getattr(dataset, "device_colors", {}) or {}
     means = {}
     for device in devices:
         handle = dataset.device(device)
@@ -212,7 +213,8 @@ def plot_mean_spectrum_all(dataset, devices=None, start_time=None, end_time=None
         fig, ax = plt.subplots(figsize=figsize or (11, 5))
         for k, device in enumerate(devices):
             m = means[device]
-            ax.plot(m["freqs"], m["spectrum"], lw=1.0, color="C%d" % (k % 10),
+            ax.plot(m["freqs"], m["spectrum"], lw=1.0,
+                    color=colors.get(device, "C%d" % (k % 10)),
                     label="%s (f0=%.2f Hz)" % (device, m["f_dom"]))
         ax.set_xlabel("Frequency [Hz]")
         ax.set_ylabel("Mean amplitude [m/s^2 . s]")

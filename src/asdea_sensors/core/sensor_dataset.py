@@ -67,8 +67,9 @@ class SensorDataset:
     """
 
     def __init__(self, path, pattern="*.h5", date_source="filename",
-                 devices=None, titles=None, load_mode="auto", ram_fraction=0.5,
-                 axes_map=None, verbose=True):
+                 devices=None, titles=None, device_colors=None,
+                 load_mode="auto", ram_fraction=0.5, axes_map=None,
+                 verbose=True):
         self.path = path
         self.pattern = pattern
         self.date_source = date_source
@@ -96,6 +97,16 @@ class SensorDataset:
             self.titles = dict(titles)
         else:
             self.titles = dict(getattr(settings, "FLOOR_TITLES", {}) or {})
+
+        # Per-sensor plot color, on the object so plots never need it passed.
+        # Defaults to the matplotlib tab cycle, one color per device in order.
+        _tab = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple",
+                "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan"]
+        if device_colors is not None:
+            self.device_colors = dict(device_colors)
+        else:
+            self.device_colors = {d: _tab[i % len(_tab)]
+                                  for i, d in enumerate(self.devices)}
 
         self.fs = self._index.fs
         self.dt = self._index.dt

@@ -102,6 +102,7 @@ def plot_newmark_all(dataset, devices=None, start_time=None, end_time=None, comp
     units = {"PSa": "m/s^2", "Sa": "m/s^2", "PSv": "m/s", "Sv": "m/s", "Sd": "m"}
     ylabel_unit = unit if unit is not None else units.get(quantity, "")
     devices = list(dataset.devices) if devices is None else list(devices)
+    colors = getattr(dataset, "device_colors", {}) or {}
 
     specs = {}
     for device in devices:
@@ -129,7 +130,8 @@ def plot_newmark_all(dataset, devices=None, start_time=None, end_time=None, comp
     fig, ax = plt.subplots(figsize=figsize or (10, 5))
     for k, device in enumerate(devices):
         s = specs[device]
-        ax.plot(s["T"], s[quantity], lw=1.1, color="C%d" % (k % 10), label=device)
+        ax.plot(s["T"], s[quantity], lw=1.1,
+                color=colors.get(device, "C%d" % (k % 10)), label=device)
     ax.set_xlabel("Period T [s]")
     ax.set_ylabel("%s [%s]" % (quantity, ylabel_unit))
     ax.set_title("Newmark %s - %d sensors - component %s"

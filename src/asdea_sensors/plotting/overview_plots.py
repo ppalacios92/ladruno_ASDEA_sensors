@@ -149,9 +149,13 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
     else:
         target = max(200, int(figsize[0] * dpi / max(1, n_dev)))
 
-    rows = [("x", "Acc X [%s]" % unit, "C0"),
-            ("y", "Acc Y [%s]" % unit, "C1"),
-            ("z", "Acc Z [%s]" % unit, "C2")]
+    rows = [("x", "Acc X [%s]" % unit),
+            ("y", "Acc Y [%s]" % unit),
+            ("z", "Acc Z [%s]" % unit)]
+
+    # One color per device (column), taken from the dataset; same color for the
+    # three rows of that sensor.
+    colors = getattr(dataset, "device_colors", {}) or {}
 
     w0 = _to_dt64(window[0]) if window else None
     w1 = _to_dt64(window[1]) if window else None
@@ -161,7 +165,8 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
         t, x, y, z = _read_device(dataset, device, target)
         series = {"x": x, "y": y, "z": z}
         label = titles.get(device, device)
-        for i, (comp, ylab, color) in enumerate(rows):
+        color = colors.get(device, "C%d" % (j % 10))
+        for i, (comp, ylab) in enumerate(rows):
             ax = axes[i][j]
             vals = np.asarray(series[comp], dtype=float) * factor
             if t.size:

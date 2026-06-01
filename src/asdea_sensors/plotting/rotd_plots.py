@@ -89,6 +89,7 @@ def plot_rotd_all(dataset, devices=None, start_time=None, end_time=None, comp_x=
     from ..seismic import rotd as _rotd
 
     devices = list(dataset.devices) if devices is None else list(devices)
+    colors = getattr(dataset, "device_colors", {}) or {}
     key = "ROTD%d" % rotd
     fig, ax = plt.subplots(figsize=figsize or (10, 5))
     for k, device in enumerate(devices):
@@ -103,7 +104,8 @@ def plot_rotd_all(dataset, devices=None, start_time=None, end_time=None, comp_x=
         r = _rotd.compute(sig.component(comp_x), sig.component(comp_y), sig.dt,
                           rotd=rotd, damping=damping, angle_step=angle_step,
                           max_period=max_period, dT=dT)
-        ax.plot(r["T"], r[key], lw=1.1, color="C%d" % (k % 10), label=device)
+        ax.plot(r["T"], r[key], lw=1.1,
+                color=colors.get(device, "C%d" % (k % 10)), label=device)
 
     ax.set_xlabel("Period T [s]")
     ax.set_ylabel("RotD%d PSa [m/s^2]" % rotd)
