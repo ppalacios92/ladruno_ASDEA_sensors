@@ -63,9 +63,14 @@ class DeviceHandle:
         index = self.dataset._index
         if self._window is not None:
             files = index.in_range(*self._window)
-        else:
-            files = [p for (_when, p) in index.files]
-        return files
+            if not files:
+                span = getattr(self.dataset, "time_span", None)
+                raise ValueError(
+                    "window %s overlaps no data files for %s. "
+                    "The record spans %s. Check the window start/length."
+                    % (tuple(str(b) for b in self._window), self.device, span))
+            return files
+        return [p for (_when, p) in index.files]
 
     def _read_signal(self, components="all", remove_mean=False):
         """Read the device acceleration and build a :class:`SignalData`."""
