@@ -122,15 +122,18 @@ def plot_spectrum(analysis, figsize=None, xlim=None, ylim=None, save=None):
     fft_abs = np.asarray(analysis.fft_abs)
     mean_spectrum = np.asarray(analysis.mean_spectrum)
 
+    # freqs / fft_abs are (n_freqs, n_windows); use the 1-D frequency axis and
+    # plot one faint line per window column.
+    freq_axis = freqs[:, 0] if freqs.ndim == 2 else freqs
+    spectra = fft_abs if fft_abs.ndim == 2 else fft_abs[:, None]
+
     fig, ax = plt.subplots(figsize=figsize or (10, 5))
 
-    # Per-window spectra (rows are windows) drawn faintly behind the mean.
-    spectra = np.atleast_2d(fft_abs)
-    for k, spec in enumerate(spectra):
-        ax.plot(freqs, spec, lw=0.5, color="0.7",
+    for k in range(spectra.shape[1]):
+        ax.plot(freq_axis, spectra[:, k], lw=0.5, color="0.7",
                 label="windows" if k == 0 else None)
 
-    ax.plot(freqs, mean_spectrum, lw=1.6, color="C0", label="mean spectrum")
+    ax.plot(freq_axis, mean_spectrum, lw=1.6, color="C0", label="mean spectrum")
 
     dom = getattr(analysis, "dominant_period", None)
     if dom:

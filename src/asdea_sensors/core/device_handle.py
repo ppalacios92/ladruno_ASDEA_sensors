@@ -92,6 +92,21 @@ class DeviceHandle:
             if start is not None:
                 sig.t_abs = (np.datetime64(start)
                              + (sig.time * 1e9).astype("timedelta64[ns]"))
+
+        # Trim to the exact window. in_range returns the files overlapping the
+        # window (whole 10-min files), so here we cut to the requested bounds.
+        if self._window is not None and getattr(sig, "t_abs", None) is not None:
+            t0 = np.datetime64(self._window[0])
+            t1 = np.datetime64(self._window[1])
+            mask = (sig.t_abs >= t0) & (sig.t_abs <= t1)
+            for name in ("acc_x", "acc_y", "acc_z"):
+                arr = getattr(sig, name)
+                if arr is not None:
+                    setattr(sig, name, arr[mask])
+            sig.t_abs = sig.t_abs[mask]
+            sig.time = sig.time[mask]
+            if sig.time.size:
+                sig.time = sig.time - sig.time[0]   # relative time starts at 0
         return sig
 
     def _signal(self, components="all", remove_mean=False):

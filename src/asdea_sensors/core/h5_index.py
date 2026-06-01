@@ -5,7 +5,7 @@ sampling rate and time span. Built once at construction; queried many times.
 import glob
 import os
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import h5py
 import numpy as np
@@ -118,8 +118,25 @@ class H5Index:
         return dt, fs
 
     def in_range(self, t0, t1):
-        """Return the file paths whose date falls within ``[t0, t1]``, ordered."""
-        return [p for (when, p) in self.files if t0 <= when <= t1]
+        """Return the file paths that overlap ``[t0, t1]``, ordered.
+
+        A file covers from its start datetime up to the next file's start, so a
+        file is included when that coverage intersects the window. This catches
+        the file that begins before ``t0`` but holds the start of the window;
+        the caller then trims to the exact bounds.
+        """
+        out = []
+        n = len(self.files)
+        for i, (when, p) in enumerate(self.files):
+            if i + 1 < n:
+                end = self.files[i + 1][0]
+            elif i > 0:
+                end = when + (when - self.files[i - 1][0])
+            else:
+                end = when + timedelta(minutes=11)
+            if when < t1 and end > t0:
+                out.append(p)
+        return out
 
     def parse_date(self, filename):
         """Parse ``YYYYMMDDHHMMSS`` from a file name into a datetime."""
