@@ -1,5 +1,7 @@
 """Plots of the Arias intensity (Husid plot)."""
 
+from . import _panels
+
 
 def _finish(fig, save, default_name):
     """Show the figure or save it under a format/path."""
@@ -75,3 +77,51 @@ def plot_arias(result, component="x", figsize=None, xlim=None, ylim=None,
     fig.tight_layout()
 
     return _finish(fig, save, "arias_{}".format(component))
+
+
+def plot_arias_all(dataset, results, components="all", layout="auto",
+                   group=None, figsize=None, xlim=None, ylim=None, save=None):
+    """Plot precomputed Arias curves (no compute here); layout from shape.
+
+    ::
+
+        arias = ds.arias(component="all", low=5, high=95)
+        plot_arias_all(ds, arias)                 # grid: rows x/y/z, cols sensors
+        plot_arias_all(ds, ds.arias(component="x"), layout="overlay")   # sensors overlaid
+        plot_arias_all(ds, ds.MOF00135.arias(component="all"))          # one sensor, comps overlaid
+
+    The significant-duration band (t_start..t_end) is shaded in each panel.
+
+    Parameters
+    ----------
+    dataset : SensorDataset
+        Source object (device order, colors, titles).
+    results : dict
+        ``ds.arias(component="all")`` -> ``{device: {x, y, z: result}}`` or a
+        single-component / single-sensor variant.
+    components : str or sequence, default "all"
+    layout : {"auto", "grid", "overlay"}, default "auto"
+    group : bool or None
+        Back-compat alias (``True`` -> overlay, ``False`` -> grid).
+    figsize, xlim, ylim, save
+        Plot controls.
+    """
+    import numpy as np
+
+    def curve(r):
+        ia = np.asarray(r["IA_percent"])
+        dt = r.get("dt")
+        x = np.arange(ia.size) * dt if dt else np.linspace(0.0, 100.0, ia.size)
+        return x, ia
+
+    def mark(ax, r, color):
+        t0, t1 = r.get("t_start"), r.get("t_end")
+        if t0 is not None and t1 is not None:
+            ax.axvspan(t0, t1, color="C3", alpha=0.12)
+
+    return _panels.draw_analysis(
+        dataset, results, curve=curve,
+        components=components, layout=layout, group=group, yscale="linear",
+        xlabel="Time [s]", ylabel_unit="%", title_word="Arias intensity",
+        name="arias_all", mark=mark,
+        figsize=figsize, xlim=xlim, ylim=ylim, save=save)
