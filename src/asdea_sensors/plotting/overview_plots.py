@@ -121,13 +121,13 @@ def _read_device(dataset, device, target, window=None):
             np.concatenate(y_parts), np.concatenate(z_parts))
 
 
-def plot_overview(dataset, factor=1.0, unit="g", window=None, xlim=None,
-                  figsize=None, save=None):
+def plot_overview(dataset, factor=1.0, unit="g", number_max_points=None,
+                  window=None, xlim=None, figsize=None, save=None):
     """Plot a downsampled overview of every sensor with the window marked.
 
     Devices, titles and colors come from the object. The number of points per
-    series is resolved automatically from the figure width (min-max decimation
-    keeps the peaks), so there is nothing to tune.
+    series resolves automatically from the figure width (min-max decimation
+    keeps the peaks); pass ``number_max_points`` to override it.
 
     Parameters
     ----------
@@ -139,6 +139,10 @@ def plot_overview(dataset, factor=1.0, unit="g", window=None, xlim=None,
         and 9.81 shows m/s^2.
     unit : str, default "g"
         Unit label for the y axes.
+    number_max_points : int or None, default None
+        Points drawn per series. ``None`` resolves it automatically from the
+        figure width (recommended); pass a number to force finer or coarser
+        detail.
     window : tuple or None
         ``(start, end)`` (datetime or string) drawn as red dashed lines. ``None``
         uses the object's window when it is already windowed.
@@ -169,9 +173,13 @@ def plot_overview(dataset, factor=1.0, unit="g", window=None, xlim=None,
     fig, axes = plt.subplots(3, n_dev, figsize=figsize, sharex="col", squeeze=False)
     dpi = fig.get_dpi()
 
-    # Points per series = figure width in pixels (you cannot draw more points
-    # than pixels); min-max decimation keeps the transient peaks.
-    target = max(200, int(figsize[0] * dpi / max(1, n_dev)))
+    # Points per series. By default the figure width in pixels (you cannot draw
+    # more points than pixels); min-max decimation keeps the transient peaks.
+    # number_max_points overrides it for finer or coarser detail.
+    if number_max_points is not None:
+        target = max(2, int(number_max_points))
+    else:
+        target = max(200, int(figsize[0] * dpi / max(1, n_dev)))
 
     rows = [("x", "Acc X [%s]" % unit),
             ("y", "Acc Y [%s]" % unit),
