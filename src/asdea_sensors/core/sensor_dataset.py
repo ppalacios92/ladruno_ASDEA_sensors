@@ -135,6 +135,11 @@ class SensorDataset:
         self._cache_obj = ResultCache()
         self._cache = self._cache_obj._store
 
+        # Shared store of conditioned signals, keyed by (device, components,
+        # remove_mean, signal_state). Built once per sensor and reused by every
+        # analysis, so the read + baseline + filter + derive runs a single time.
+        self._signal_store = {}
+
         # Dataset-level resample target (set by resample()); None = native dt.
         self._resample_dt = None
 
@@ -271,6 +276,7 @@ class SensorDataset:
         # Fresh cache so windowed results never collide with the full-record ones.
         new._cache_obj = ResultCache()
         new._cache = new._cache_obj._store
+        new._signal_store = {}
         if self.verbose:
             new._window_summary()
         return new
@@ -304,6 +310,7 @@ class SensorDataset:
         new._pipeline = self._pipeline + [(step, dict(kwargs))]
         new._cache_obj = ResultCache()
         new._cache = new._cache_obj._store
+        new._signal_store = {}
         if self.verbose:
             print("[%s] %s" % (step, message))
         return new
@@ -368,6 +375,7 @@ class SensorDataset:
         # Fresh cache so resampled results never collide with the originals.
         new._cache_obj = ResultCache()
         new._cache = new._cache_obj._store
+        new._signal_store = {}
 
         # The resampled dataset reports the new rate and the rescaled counts.
         ratio = (old_dt / target) if (old_dt and target) else 1.0
@@ -394,7 +402,9 @@ class SensorDataset:
     def _broadcast(self, method_name, **kwargs):
         """Run a per-device handle method over every device, return a dict."""
         def run(dev):
-            handle = DeviceHandle(self, dev)
+            # device() carries the dataset window so broadcasts read the same
+            # conditioned window as ds.MOF00135 and share its cached signal.
+            handle = self.device(dev)
             return getattr(handle, method_name)(**kwargs)
 
         if self.parallel:

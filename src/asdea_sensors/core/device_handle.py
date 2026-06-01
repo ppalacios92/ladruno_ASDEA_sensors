@@ -114,15 +114,24 @@ class DeviceHandle:
         return sig
 
     def _signal(self, components="all", remove_mean=False):
-        """Read the signal and apply the processing pipeline in order."""
-        cache_key = (components, remove_mean, _freeze(self._signal_state()))
-        cached = self._signal_cache.get(cache_key)
+        """Read the signal and apply the processing pipeline in order.
+
+        The built signal is cached on the parent dataset (shared across handles)
+        so the read + baseline + filter + derive runs once per sensor and every
+        analysis reuses it.
+        """
+        store = getattr(self.dataset, "_signal_store", None)
+        if store is None:                       # standalone handle, no dataset store
+            store = self._signal_cache
+        cache_key = (self.device, components, remove_mean,
+                     _freeze(self._signal_state()))
+        cached = store.get(cache_key)
         if cached is not None:
             return cached
         sig = self._read_signal(components=components, remove_mean=remove_mean)
         for step, kw in self._pipeline_steps():
             sig = getattr(sig, step)(**kw)
-        self._signal_cache[cache_key] = sig
+        store[cache_key] = sig
         return sig
 
     def _log(self, line):
