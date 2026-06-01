@@ -34,6 +34,11 @@ class H5Index:
         Sampling frequency in Hz, measured from the Timestamp dataset.
     dt : float
         Sampling interval in seconds.
+    n_samples : dict
+        Total acceleration samples available per device (summed over files).
+    max_points : int
+        The largest per-device sample count -- a metric of how much data there
+        is to plot.
     """
 
     def __init__(self, path, pattern="*.h5", date_source="filename"):
@@ -44,6 +49,8 @@ class H5Index:
         self.devices = []
         self.fs = None
         self.dt = None
+        self.n_samples = {}
+        self.max_points = 0
 
         # 1) glob the folder and parse each file's date into (datetime, path).
         for fpath in glob.glob(os.path.join(path, pattern)):
@@ -67,6 +74,16 @@ class H5Index:
         # 3) estimate fs / dt from the Timestamp dataset of the first device.
         if self.devices:
             self.dt, self.fs = self._estimate_dt(first, self.devices[0])
+
+        # 4) total acceleration samples per device (reads shapes only, no data).
+        self.n_samples = {d: 0 for d in self.devices}
+        for _when, fpath in self.files:
+            with h5py.File(fpath, "r") as f:
+                for d in self.devices:
+                    key = "Devices/%s/Acceleration" % d
+                    if key in f:
+                        self.n_samples[d] += f[key].shape[0]
+        self.max_points = max(self.n_samples.values()) if self.n_samples else 0
 
     def _estimate_dt(self, path, device):
         """Estimate (dt, fs) from one device's Timestamp dataset in ``path``.

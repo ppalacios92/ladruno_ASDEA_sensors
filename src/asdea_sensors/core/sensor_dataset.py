@@ -92,6 +92,11 @@ class SensorDataset:
         self.fs = self._index.fs
         self.dt = self._index.dt
 
+        # Total samples available per device, and the largest one as a metric
+        # of how much data there is to plot.
+        self.n_samples = dict(self._index.n_samples)
+        self.max_points = self._index.max_points
+
         if self._index.files:
             self.time_span = (self._index.files[0][0], self._index.files[-1][0])
         else:
@@ -134,6 +139,9 @@ class SensorDataset:
         lines.append("devices     : %s" % ", ".join(self.devices))
         if self.fs is not None:
             lines.append("fs / dt     : %.4f Hz / %.6f s" % (self.fs, self.dt))
+        if self.max_points:
+            lines.append("max points  : %s samples/axis (largest device)"
+                         % format(self.max_points, ","))
         lines.append(sep)
         lines.append("axes (per sensor):")
         for dev in self.devices:
