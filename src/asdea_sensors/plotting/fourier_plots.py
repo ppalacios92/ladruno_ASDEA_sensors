@@ -68,7 +68,7 @@ def plot_fourier(result, component="x", smooth=None, unit=None,
     return _finish(fig, save, "fourier_{}".format(component))
 
 
-def plot_fourier_all(dataset, devices, start_time, end_time,
+def plot_fourier_all(dataset, devices, start_time=None, end_time=None,
                      components=("x", "y", "z"), baseline=True,
                      fmin=0.1, fmax=24.9, smooth=None, bexp=40,
                      overlay_raw=False, group=False, num_frequencies=4,
@@ -124,7 +124,9 @@ def plot_fourier_all(dataset, devices, start_time, end_time,
 
     filt_by_dev, raw_by_dev = {}, {}
     for device in devices:
-        base = dataset.device(device).get_window(start_time, end_time)
+        base = dataset.device(device)
+        if start_time is not None and end_time is not None:
+            base = base.get_window(start_time, end_time)
         if baseline:
             base = base.baseline()
         filt_by_dev[device] = spectra(base.filter(fmin, fmax, engine="scipy"))

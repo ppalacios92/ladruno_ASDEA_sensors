@@ -65,7 +65,7 @@ def plot_newmark(result, component="x", quantity="PSa", unit=None,
     return _finish(fig, save, "newmark_{}_{}".format(quantity, component))
 
 
-def plot_newmark_all(dataset, devices, start_time, end_time, component="x",
+def plot_newmark_all(dataset, devices, start_time=None, end_time=None, component="x",
                      quantity="PSa", zeta=0.05, max_period=3.0, dT=0.02,
                      factor=1.0, unit=None, baseline=True, fmin=None, fmax=None,
                      group=True, figsize=None, xlim=None, ylim=None, save=None):
@@ -104,7 +104,9 @@ def plot_newmark_all(dataset, devices, start_time, end_time, component="x",
 
     specs = {}
     for device in devices:
-        handle = dataset.device(device).get_window(start_time, end_time)
+        handle = dataset.device(device)
+        if start_time is not None and end_time is not None:
+            handle = handle.get_window(start_time, end_time)
         if baseline:
             handle = handle.baseline()
         if fmin is not None and fmax is not None:

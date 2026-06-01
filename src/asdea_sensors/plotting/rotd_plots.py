@@ -58,7 +58,7 @@ def plot_rotd(result, rotd=(0, 50, 100), figsize=None, xlim=None, ylim=None,
     return _finish(fig, save, "rotd_spectra")
 
 
-def plot_rotd_all(dataset, devices, start_time, end_time, comp_x="x", comp_y="y",
+def plot_rotd_all(dataset, devices, start_time=None, end_time=None, comp_x="x", comp_y="y",
                   rotd=50, damping=0.05, angle_step=15, max_period=3.0, dT=0.02,
                   baseline=True, fmin=None, fmax=None, figsize=None, xlim=None,
                   ylim=None, save=None):
@@ -91,7 +91,9 @@ def plot_rotd_all(dataset, devices, start_time, end_time, comp_x="x", comp_y="y"
     key = "ROTD%d" % rotd
     fig, ax = plt.subplots(figsize=figsize or (10, 5))
     for k, device in enumerate(devices):
-        handle = dataset.device(device).get_window(start_time, end_time)
+        handle = dataset.device(device)
+        if start_time is not None and end_time is not None:
+            handle = handle.get_window(start_time, end_time)
         if baseline:
             handle = handle.baseline()
         if fmin is not None and fmax is not None:

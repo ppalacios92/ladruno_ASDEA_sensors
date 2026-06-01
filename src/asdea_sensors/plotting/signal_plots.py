@@ -108,7 +108,9 @@ def _read_sigs(dataset, devices, start_time, end_time, baseline, fmin, fmax,
     """Read each device over the window, optionally correct/filter/derive."""
     sigs = {}
     for device in devices:
-        handle = dataset.device(device).get_window(start_time, end_time)
+        handle = dataset.device(device)
+        if start_time is not None and end_time is not None:
+            handle = handle.get_window(start_time, end_time)
         if baseline:
             handle = handle.baseline()
         if fmin is not None and fmax is not None:
@@ -119,10 +121,10 @@ def _read_sigs(dataset, devices, start_time, end_time, baseline, fmin, fmax,
     return sigs
 
 
-def plot_signals_all(dataset, devices, start_time, end_time, components="all",
-                     kind="acc", factor=1.0, unit=None, time_axis="absolute",
-                     baseline=False, fmin=None, fmax=None, group=False,
-                     figsize=None, xlim=None, ylim=None, save=None):
+def plot_signals_all(dataset, devices, start_time=None, end_time=None,
+                     components="all", kind="acc", factor=1.0, unit=None,
+                     time_axis="absolute", baseline=False, fmin=None, fmax=None,
+                     group=False, figsize=None, xlim=None, ylim=None, save=None):
     """Plot the time histories of several sensors over the same window.
 
     Pass the device list directly (no manual loop).

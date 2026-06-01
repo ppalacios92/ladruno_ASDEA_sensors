@@ -106,7 +106,7 @@ def plot_psd_bands(result, band, figsize=None, xlim=None, ylim=None,
     return _finish(fig, save, "psd_bands")
 
 
-def plot_psd_all(dataset, devices, start_time, end_time, component="x",
+def plot_psd_all(dataset, devices, start_time=None, end_time=None, component="x",
                  nperseg=512, noverlap=256, window="hann", bands=None,
                  baseline=True, fmin=None, fmax=None, group=True,
                  figsize=None, xlim=(0, 25), ylim=None, save=None):
@@ -142,7 +142,9 @@ def plot_psd_all(dataset, devices, start_time, end_time, component="x",
 
     results = {}
     for device in devices:
-        handle = dataset.device(device).get_window(start_time, end_time)
+        handle = dataset.device(device)
+        if start_time is not None and end_time is not None:
+            handle = handle.get_window(start_time, end_time)
         if baseline:
             handle = handle.baseline()
         if fmin is not None and fmax is not None:

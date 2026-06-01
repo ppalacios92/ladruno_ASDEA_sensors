@@ -155,10 +155,10 @@ def plot_spectrum(analysis, figsize=None, xlim=None, ylim=None, save=None):
     return _finish(fig, save, "ambient_spectrum")
 
 
-def plot_mean_spectrum_all(dataset, devices, start_time, end_time, config,
-                           component="x", baseline=True, fmin=None, fmax=None,
-                           group=True, figsize=None, xlim=(0, 25), ylim=None,
-                           save=None):
+def plot_mean_spectrum_all(dataset, devices, start_time=None, end_time=None,
+                           config=None, component="x", baseline=True, fmin=None,
+                           fmax=None, group=True, figsize=None, xlim=(0, 25),
+                           ylim=None, save=None):
     """Ambient mean spectra (STA/LTA windows) for a list of sensors.
 
     For each device: read the window, optionally baseline-correct / band-pass,
@@ -191,7 +191,9 @@ def plot_mean_spectrum_all(dataset, devices, start_time, end_time, config,
 
     means = {}
     for device in devices:
-        handle = dataset.device(device).get_window(start_time, end_time)
+        handle = dataset.device(device)
+        if start_time is not None and end_time is not None:
+            handle = handle.get_window(start_time, end_time)
         if baseline:
             handle = handle.baseline()
         if fmin is not None and fmax is not None:

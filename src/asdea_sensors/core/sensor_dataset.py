@@ -119,6 +119,10 @@ class SensorDataset:
         # Dataset-level resample target (set by resample()); None = native dt.
         self._resample_dt = None
 
+        # Dataset-level default window (set by get_window()/window()); when set,
+        # every per-sensor read is restricted to it. None = whole record.
+        self._default_window = None
+
         self.units = "SI"
 
         if self.verbose:
@@ -185,15 +189,63 @@ class SensorDataset:
 
     def device(self, name):
         """Return the :class:`DeviceHandle` for one device id."""
-        return DeviceHandle(self, name)
+        return DeviceHandle(self, name, window=self._default_window)
 
     def __getattr__(self, name):
         """Allow ``ds.MOF00135`` to return that device's handle."""
         # Access __dict__ directly to avoid recursion during construction.
         devices = self.__dict__.get("devices", [])
         if name in devices:
-            return DeviceHandle(self, name)
+            return DeviceHandle(self, name,
+                                window=self.__dict__.get("_default_window"))
         raise AttributeError(name)
+
+    # -- windowing (whole dataset) -------------------------------------
+
+    def _window_summary(self):
+        """Print the windowed-dataset properties (span, duration, samples)."""
+        sep = "-" * 60
+        t0, t1 = self._default_window
+        dur = float((np.datetime64(t1) - np.datetime64(t0))
+                    / np.timedelta64(1, "s"))
+        n = int(round(dur / self.dt)) if self.dt else 0
+        print(sep)
+        print("windowed dataset")
+        print("  span    : %s  ->  %s" % (t0, t1))
+        print("  duration: %.1f s" % dur)
+        print("  fs / dt : %.4f Hz / %.6f s" % (self.fs, self.dt))
+        print("  devices : %s" % ", ".join(self.devices))
+        print("  samples : ~%s / axis / device (estimated)" % format(n, ","))
+        print(sep)
+
+    def _windowed_copy(self, bounds):
+        new = copy.copy(self)
+        new._default_window = bounds
+        # Fresh cache so windowed results never collide with the full-record ones.
+        new._cache_obj = ResultCache()
+        new._cache = new._cache_obj._store
+        if self.verbose:
+            new._window_summary()
+        return new
+
+    def get_window(self, t0, t1):
+        """Return a dataset whose every read is restricted to ``[t0, t1]``.
+
+        The returned dataset behaves like the original but every per-sensor read
+        (``ds_w.MOF00135.signal()``, broadcasts, building methods, and the
+        ``*_all`` plot helpers) is limited to this window, so you set it once.
+        """
+        from . import window_service as _window
+        dev0 = self.devices[0] if self.devices else None
+        bounds = _window.window_from_bounds(self._index, dev0, t0, t1)
+        return self._windowed_copy(bounds)
+
+    def window(self, start, length):
+        """Return a dataset windowed to ``[start, start + length]`` (all reads)."""
+        from . import window_service as _window
+        dev0 = self.devices[0] if self.devices else None
+        bounds = _window.window_from_start(self._index, dev0, start, length)
+        return self._windowed_copy(bounds)
 
     # -- preprocessing -------------------------------------------------
 
