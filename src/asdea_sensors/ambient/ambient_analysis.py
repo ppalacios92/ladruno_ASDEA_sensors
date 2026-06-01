@@ -69,11 +69,27 @@ class AmbientAnalysis:
         self._done = []
 
     def sta_lta(self):
-        """Step 1: compute the STA/LTA ratio."""
+        """Step 1: compute the STA/LTA ratio.
+
+        The signal is normalized first, exactly as AmbientSoilPeriod's
+        BuildPeriod did: remove the mean, divide by the standard deviation, then
+        by the peak amplitude. The windows are still cut from the original
+        signal in ``select_windows``; only the ratio uses the normalized copy.
+        """
         sta = float(self.config["STA"])
         lta = float(self.config["LTA"])
+
+        v = self.signal - np.mean(self.signal)
+        std = np.std(v)
+        if std > 0:
+            v = v / std
+        peak = np.max(np.abs(v))
+        if peak > 0:
+            v = v / peak
+        self.signal_normalized = v
+
         self.sta_lta_ratio, self.sta, self.lta = _sta_lta.compute(
-            self.signal, self.fs, sta, lta)
+            v, self.fs, sta, lta)
         if "sta_lta" not in self._done:
             self._done.append("sta_lta")
         print("- sta_lta: ratio computed (STA=%g s, LTA=%g s)" % (sta, lta))
@@ -118,10 +134,22 @@ class AmbientAnalysis:
                 float(self.config["vmin"]),
                 float(self.config["vmax"]),
             )
-            self.windows_time = MT
-            self.windows_signal = MV
-            self.windows_pos = positions
-            self.win_ids = ids
+            if MV.ndim != 2 or MV.shape[1] == 0:
+                # No window passed the STA/LTA test (typically the analysis
+                # window is short relative to vent). Fall back to a single
+                # full-length window so the downstream steps still run.
+                import warnings
+                warnings.warn("ambient: no STA/LTA window selected; using the "
+                              "whole signal as one window")
+                self.windows_time = time[:, None]
+                self.windows_signal = self.signal[:, None]
+                self.windows_pos = np.array([0])
+                self.win_ids = np.array([0])
+            else:
+                self.windows_time = MT
+                self.windows_signal = MV
+                self.windows_pos = positions
+                self.win_ids = ids
 
         if "select_windows" not in self._done:
             self._done.append("select_windows")

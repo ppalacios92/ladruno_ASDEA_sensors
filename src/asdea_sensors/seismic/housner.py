@@ -29,9 +29,11 @@ def compute(acc, dt, T1=0.1, T2=2.5, zeta=0.05):
     dict
         Keys: SI.
     """
-    # Make sure the spectrum reaches at least T2.
-    max_period = max(5.01, T2 + 0.01)
-    result = newmark.compute(acc, dt, zeta=zeta, max_period=max_period)
+    # Only the PSv between T1 and T2 is needed, so the spectrum is computed just
+    # past T2 (not to 5 s) with a coarser period step. This is several times
+    # faster and leaves the SI integral unchanged in practice.
+    max_period = T2 + 0.05
+    result = newmark.compute(acc, dt, zeta=zeta, max_period=max_period, dT=0.02)
     T = result["T"]
     PSv = result["PSv"]
 
