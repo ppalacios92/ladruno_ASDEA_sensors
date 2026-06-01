@@ -69,7 +69,7 @@ class SensorDataset:
     def __init__(self, path, pattern="*.h5", date_source="filename",
                  devices=None, titles=None, device_colors=None,
                  load_mode="auto", ram_fraction=0.5, axes_map=None,
-                 parallel=False, n_jobs=4, verbose=True):
+                 fs=None, dt=None, parallel=False, n_jobs=4, verbose=True):
         self.path = path
         self.pattern = pattern
         self.date_source = date_source
@@ -115,6 +115,14 @@ class SensorDataset:
         self.fs = self._index.fs
         self.dt = self._index.dt
 
+        # Optional sampling-rate override: when the Timestamp dataset is
+        # unreliable (or you want to match a fixed Fs as in BuildPeriod), pass
+        # fs= (or dt=) to force it instead of estimating from the timestamps.
+        if fs is not None:
+            self.fs, self.dt = float(fs), 1.0 / float(fs)
+        elif dt is not None:
+            self.dt, self.fs = float(dt), 1.0 / float(dt)
+
         # Total samples available per device, and the largest one as a metric
         # of how much data there is to plot.
         self.n_samples = dict(self._index.n_samples)
@@ -130,9 +138,11 @@ class SensorDataset:
         else:
             self.duration = 0.0
 
-        # Active axis mapping and the reader built on top of it.
+        # Active axis mapping and the reader built on top of it. When fs/dt is
+        # forced, the reader uses it too (so the signal's time vector matches).
         self.axes_map = axes_map if axes_map is not None else settings.SENSOR_AXES
-        self._reader = H5Reader(self.axes_map)
+        self._reader = H5Reader(self.axes_map,
+                                dt=self.dt if (fs is not None or dt is not None) else None)
 
         # Result cache: keep the object (for keying/get/set) and expose its
         # underlying dict as self._cache (the io.exporter iterates over it).

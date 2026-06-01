@@ -27,11 +27,15 @@ class H5Reader:
         physical columns are X, Y, Z for each sensor.
     to_si : bool, default True
         Convert the raw acceleration from g to m/s^2 (multiply by 9.81).
+    dt : float or None, default None
+        Forced sampling interval. When given, the time vector uses it instead
+        of estimating from the Timestamp dataset.
     """
 
-    def __init__(self, axes_map, to_si=True):
+    def __init__(self, axes_map, to_si=True, dt=None):
         self.axes_map = axes_map
         self.to_si = to_si
+        self._dt_override = dt
 
     def _resolve_axes(self, device, ncols):
         """Return the (ix, iy, iz) columns to use for ``device``.
@@ -94,8 +98,9 @@ class H5Reader:
         # remember the axis mapping that was actually used (files have 3 cols).
         axes = self._resolve_axes(device, 3)
 
-        # dt / continuous time vector rebuilt from the per-sample interval.
-        dt = self.dt_from_timestamp(files[0], device)[0]
+        # dt / continuous time vector rebuilt from the per-sample interval
+        # (or the forced override when the timestamps are unreliable).
+        dt = self._dt_override or self.dt_from_timestamp(files[0], device)[0]
         n = acc.shape[0]
         time = np.arange(n, dtype=np.float64) * dt
 
