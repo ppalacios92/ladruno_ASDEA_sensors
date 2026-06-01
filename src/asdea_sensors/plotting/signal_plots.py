@@ -103,12 +103,29 @@ def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
     return _finish(fig, save, "signal_{}_{}".format(prefix, signal.device))
 
 
+def _read_sigs(dataset, devices, start_time, end_time, baseline, fmin, fmax,
+               kind):
+    """Read each device over the window, optionally correct/filter/derive."""
+    sigs = {}
+    for device in devices:
+        handle = dataset.device(device).get_window(start_time, end_time)
+        if baseline:
+            handle = handle.baseline()
+        if fmin is not None and fmax is not None:
+            handle = handle.filter(fmin, fmax, engine="scipy")
+        if kind in ("vel", "disp"):
+            handle = handle.derive()
+        sigs[device] = handle.signal(components="all")
+    return sigs
+
+
 def plot_signals_all(dataset, devices, start_time, end_time, components="all",
                      kind="acc", factor=1.0, unit=None, time_axis="absolute",
+                     baseline=False, fmin=None, fmax=None, group=False,
                      figsize=None, xlim=None, ylim=None, save=None):
     """Plot the time histories of several sensors over the same window.
 
-    Pass the device list directly (no manual loop). One figure per device.
+    Pass the device list directly (no manual loop).
 
     Parameters
     ----------
@@ -119,26 +136,80 @@ def plot_signals_all(dataset, devices, start_time, end_time, components="all",
     start_time, end_time : datetime or str
         Window applied to every device.
     components, kind, factor, unit, time_axis, figsize, xlim, ylim
-        Same meaning as :func:`plot_signals`, applied to each device.
+        Same meaning as :func:`plot_signals`.
+    baseline : bool, default False
+        Apply baseline correction before plotting.
+    fmin, fmax : float or None, default None
+        Band-pass edges; when both are given the signal is filtered first.
+    group : bool, default False
+        ``False`` draws one figure per device. ``True`` overlays every device
+        on the same axes (one row per component, with a legend).
     save : str or None, default None
-        ``None`` shows each figure. A bare format ("pdf"/"svg"/"png") saves one
-        file per device named ``signal_<kind>_<device>.<fmt>``.
+        ``None`` shows the figure(s). A bare format ("pdf"/"svg"/"png") saves
+        ``signal_<kind>_<device>.<fmt>`` per device, or ``signals_all.<fmt>``
+        when grouped.
 
     Returns
     -------
-    list
-        The saved paths (or ``None`` entries when shown).
+    list or str or None
+        Saved paths (per device) or the grouped figure result.
     """
-    # derive() needs the integrated signal for vel/disp; read + chain per device.
-    paths = []
-    for device in devices:
-        handle = dataset.device(device).get_window(start_time, end_time)
-        if kind in ("vel", "disp"):
-            handle = handle.derive()
-        sig = handle.signal(components="all")
-        paths.append(plot_signals(
-            sig, components=components, kind=kind, factor=factor, unit=unit,
-            time_axis=time_axis, figsize=figsize, xlim=xlim, ylim=ylim,
-            save=save,
-        ))
-    return paths
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    labels = {"acc": ("Acceleration", "acc", "m/s^2"),
+              "vel": ("Velocity", "vel", "m/s"),
+              "disp": ("Displacement", "disp", "m")}
+    title_word, prefix, default_unit = labels[kind]
+    unit = unit if unit is not None else default_unit
+    comps = ("x", "y", "z") if components == "all" else (components,)
+
+    sigs = _read_sigs(dataset, devices, start_time, end_time, baseline,
+                      fmin, fmax, kind)
+
+    if not group:
+        paths = []
+        for device in devices:
+            paths.append(plot_signals(
+                sigs[device], components=components, kind=kind, factor=factor,
+                unit=unit, time_axis=time_axis, figsize=figsize, xlim=xlim,
+                ylim=ylim, save=save))
+        return paths
+
+    # group=True: overlay every device, one row per component.
+    fig, axes = plt.subplots(len(comps), 1, sharex=True,
+                             figsize=figsize or (12, 2.6 * len(comps)))
+    if len(comps) == 1:
+        axes = [axes]
+
+    for ax, comp in zip(axes, comps):
+        for k, device in enumerate(devices):
+            sig = sigs[device]
+            use_abs = (time_axis == "absolute"
+                       and getattr(sig, "t_abs", None) is not None)
+            t = sig.t_abs if use_abs else sig.time
+            data = getattr(sig, "{}_{}".format(prefix, comp), None)
+            if data is not None:
+                ax.plot(t, data * factor, lw=0.7, color="C%d" % (k % 10),
+                        label=device)
+        ax.set_ylabel("{} {}\n[{}]".format(comp.upper(), title_word, unit))
+        ax.grid(True, alpha=0.3)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+    axes[0].legend(loc="upper right", ncol=len(devices), fontsize=8)
+
+    use_abs = (time_axis == "absolute"
+               and getattr(sigs[devices[0]], "t_abs", None) is not None)
+    if use_abs:
+        axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d %H:%M:%S"))
+        for lbl in axes[-1].get_xticklabels():
+            lbl.set_rotation(90)
+        axes[-1].set_xlabel("Date")
+    else:
+        axes[-1].set_xlabel("Time [s]")
+    axes[0].set_title("%s time history - %d sensors" % (title_word, len(devices)),
+                      fontweight="bold")
+    fig.tight_layout()
+    return _finish(fig, save, "signals_all_%s" % kind)

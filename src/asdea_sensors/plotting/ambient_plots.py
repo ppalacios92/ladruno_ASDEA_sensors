@@ -150,3 +150,93 @@ def plot_spectrum(analysis, figsize=None, xlim=None, ylim=None, save=None):
     fig.tight_layout()
 
     return _finish(fig, save, "ambient_spectrum")
+
+
+def plot_mean_spectrum_all(dataset, devices, start_time, end_time, config,
+                           component="x", baseline=True, fmin=None, fmax=None,
+                           group=True, figsize=None, xlim=(0, 25), ylim=None,
+                           save=None):
+    """Ambient mean spectra (STA/LTA windows) for a list of sensors.
+
+    For each device: read the window, optionally baseline-correct / band-pass,
+    run the ambient pipeline (STA/LTA windowing -> taper -> FFT -> Konno-Ohmachi
+    -> average) and read the mean spectrum and its dominant frequency.
+
+    Parameters
+    ----------
+    dataset : SensorDataset
+    devices : list of str
+    start_time, end_time : datetime or str
+    config : dict
+        Ambient configuration (Fs, STA, LTA, vent, vmin, vmax, p, bexp, ...).
+    component : {"x", "y", "z"}, default "x"
+    baseline : bool, default True
+    fmin, fmax : float or None
+        Band-pass edges applied before the ambient analysis when given.
+    group : bool, default True
+        ``True`` overlays the mean spectra of all devices; ``False`` is one
+        figure per device.
+    figsize, xlim, ylim, save
+        Plot controls (xlim defaults to 0-25 Hz).
+
+    Returns
+    -------
+    dict
+        ``{device: dominant_frequency_Hz}``.
+    """
+    import matplotlib.pyplot as plt
+
+    means = {}
+    for device in devices:
+        handle = dataset.device(device).get_window(start_time, end_time)
+        if baseline:
+            handle = handle.baseline()
+        if fmin is not None and fmax is not None:
+            handle = handle.filter(fmin, fmax, engine="scipy")
+        amb = handle.signal(components="all").ambient(config, component=component)
+        amb.average()
+        f_dom = 1.0 / amb.dominant_period if amb.dominant_period else float("nan")
+        means[device] = {"freqs": amb.freqs[:, 0],
+                         "spectrum": amb.mean_spectrum,
+                         "f_dom": f_dom}
+
+    dom = {d: means[d]["f_dom"] for d in devices}
+
+    if group:
+        fig, ax = plt.subplots(figsize=figsize or (11, 5))
+        for k, device in enumerate(devices):
+            m = means[device]
+            ax.plot(m["freqs"], m["spectrum"], lw=1.0, color="C%d" % (k % 10),
+                    label="%s (f0=%.2f Hz)" % (device, m["f_dom"]))
+        ax.set_xlabel("Frequency [Hz]")
+        ax.set_ylabel("Mean amplitude [m/s^2 . s]")
+        ax.set_title("Ambient mean spectra - %s" % component, fontweight="bold")
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=8)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        fig.tight_layout()
+        _finish(fig, save, "ambient_mean_all")
+        return dom
+
+    for device in devices:
+        m = means[device]
+        fig, ax = plt.subplots(figsize=figsize or (9, 4))
+        ax.plot(m["freqs"], m["spectrum"], lw=1.2, color="C0")
+        ax.axvline(m["f_dom"], color="C3", ls="--", lw=1.0,
+                   label="f0 = %.2f Hz" % m["f_dom"])
+        ax.set_xlabel("Frequency [Hz]")
+        ax.set_ylabel("Mean amplitude [m/s^2 . s]")
+        ax.set_title("Ambient mean spectrum - %s %s" % (device, component),
+                     fontweight="bold")
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=8)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        fig.tight_layout()
+        _finish(fig, save, "ambient_mean_%s" % device)
+    return dom
