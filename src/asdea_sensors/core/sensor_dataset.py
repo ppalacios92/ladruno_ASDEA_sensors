@@ -459,8 +459,12 @@ class SensorDataset:
     # all sensors, not just a pair. See the building.* modules.
 
     def _read_component(self, device, component):
-        """Read one device and return one acceleration component array."""
-        return DeviceHandle(self, device)._signal().component(component)
+        """Read one device and return one acceleration component array.
+
+        Goes through device() so the dataset window and conditioning pipeline
+        apply (building methods read the same windowed signal as the rest).
+        """
+        return self.device(device)._signal().component(component)
 
     @staticmethod
     def _align(*arrays):
@@ -537,8 +541,8 @@ class SensorDataset:
         dev_a, dev_b = members[0], members[1]
 
         # Rotate each sensor's horizontals into the common building frame.
-        sig_a = DeviceHandle(self, dev_a)._signal()
-        sig_b = DeviceHandle(self, dev_b)._signal()
+        sig_a = self.device(dev_a)._signal()
+        sig_b = self.device(dev_b)._signal()
         az_a = geometry[dev_a].get("azimuth", 0.0) or 0.0
         az_b = geometry[dev_b].get("azimuth", 0.0) or 0.0
         ax_a, ay_a = _geom.rotate_to_common(sig_a.acc_x, sig_a.acc_y, az_a)
@@ -567,8 +571,8 @@ class SensorDataset:
     def interstory_drift(self, upper, lower, component="x", **kwargs):
         """Interstory drift between two floors. See building.drift."""
         from ..building import drift as _drift
-        sig_u = DeviceHandle(self, upper)._signal().derive()
-        sig_l = DeviceHandle(self, lower)._signal().derive()
+        sig_u = self.device(upper)._signal().derive()
+        sig_l = self.device(lower)._signal().derive()
         disp_u = getattr(sig_u, "disp_" + component)
         disp_l = getattr(sig_l, "disp_" + component)
         disp_u, disp_l = self._align(disp_u, disp_l)
@@ -584,7 +588,7 @@ class SensorDataset:
         floor_heights = _geom.heights(geometry, ordered)
         disps = {}
         for dev in ordered:
-            sig = DeviceHandle(self, dev)._signal().derive()
+            sig = self.device(dev)._signal().derive()
             disps[dev] = getattr(sig, "disp_" + component)
         # Align every floor to the common sample count (lengths differ slightly).
         aligned = self._align(*disps.values())
@@ -601,7 +605,7 @@ class SensorDataset:
         base_devices = [d for d in by_floor.get(-1, []) if d in self.devices]
         if not base_devices:
             raise ValueError("base_rocking: no base sensor (floor -1) found")
-        sig = DeviceHandle(self, base_devices[0])._signal()
+        sig = self.device(base_devices[0])._signal()
         return _rocking.compute(sig.acc_z, self.dt, **kwargs)
 
     def amplification(self, ref, others, basis="fourier", component="x", **kwargs):
