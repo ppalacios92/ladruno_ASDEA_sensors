@@ -90,7 +90,7 @@ def _read_device(dataset, device, target):
 
 
 def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
-                  window=None, figsize=None, save=None):
+                  number_max_points=None, window=None, figsize=None, save=None):
     """Plot a downsampled overview of every sensor with the window marked.
 
     Parameters
@@ -106,6 +106,10 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
         and 9.81 shows m/s^2.
     unit : str, default "g"
         Unit label for the y axes.
+    number_max_points : int or None, default None
+        Optional override for the points drawn per series. ``None`` resolves it
+        automatically from the figure width (recommended); pass a number only
+        to force finer or coarser detail.
     window : tuple or None
         ``(start, end)`` (datetime or string) drawn as red dashed lines.
     figsize : tuple or None
@@ -131,8 +135,13 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
     fig, axes = plt.subplots(3, n_dev, figsize=figsize, sharex="col", squeeze=False)
     dpi = fig.get_dpi()
 
-    # Points to draw = figure width in pixels (per column). Min-max keeps peaks.
-    target = max(200, int(figsize[0] * dpi / max(1, n_dev)))
+    # Points per series. By default it is the figure width in pixels (you
+    # cannot draw more points than pixels); min-max keeps the peaks. Passing
+    # number_max_points overrides it for finer or coarser detail.
+    if number_max_points is not None:
+        target = max(2, int(number_max_points))
+    else:
+        target = max(200, int(figsize[0] * dpi / max(1, n_dev)))
 
     rows = [("x", "Acc X [%s]" % unit, "C0"),
             ("y", "Acc Y [%s]" % unit, "C1"),
