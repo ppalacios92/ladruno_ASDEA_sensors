@@ -101,3 +101,44 @@ def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
     fig.tight_layout()
 
     return _finish(fig, save, "signal_{}_{}".format(prefix, signal.device))
+
+
+def plot_signals_all(dataset, devices, start_time, end_time, components="all",
+                     kind="acc", factor=1.0, unit=None, time_axis="absolute",
+                     figsize=None, xlim=None, ylim=None, save=None):
+    """Plot the time histories of several sensors over the same window.
+
+    Pass the device list directly (no manual loop). One figure per device.
+
+    Parameters
+    ----------
+    dataset : SensorDataset
+        Source dataset.
+    devices : list of str
+        Device ids to plot, e.g. ``["MOF00134", "MNAT0031", "MOF00135"]``.
+    start_time, end_time : datetime or str
+        Window applied to every device.
+    components, kind, factor, unit, time_axis, figsize, xlim, ylim
+        Same meaning as :func:`plot_signals`, applied to each device.
+    save : str or None, default None
+        ``None`` shows each figure. A bare format ("pdf"/"svg"/"png") saves one
+        file per device named ``signal_<kind>_<device>.<fmt>``.
+
+    Returns
+    -------
+    list
+        The saved paths (or ``None`` entries when shown).
+    """
+    # derive() needs the integrated signal for vel/disp; read + chain per device.
+    paths = []
+    for device in devices:
+        handle = dataset.device(device).get_window(start_time, end_time)
+        if kind in ("vel", "disp"):
+            handle = handle.derive()
+        sig = handle.signal(components="all")
+        paths.append(plot_signals(
+            sig, components=components, kind=kind, factor=factor, unit=unit,
+            time_axis=time_axis, figsize=figsize, xlim=xlim, ylim=ylim,
+            save=save,
+        ))
+    return paths
