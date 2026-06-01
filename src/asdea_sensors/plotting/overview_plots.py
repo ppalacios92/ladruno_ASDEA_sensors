@@ -121,30 +121,27 @@ def _read_device(dataset, device, target, window=None):
             np.concatenate(y_parts), np.concatenate(z_parts))
 
 
-def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
-                  number_max_points=None, window=None, xlim=None, figsize=None,
-                  save=None):
+def plot_overview(dataset, factor=1.0, unit="g", window=None, xlim=None,
+                  figsize=None, save=None):
     """Plot a downsampled overview of every sensor with the window marked.
+
+    Devices, titles and colors come from the object. The number of points per
+    series is resolved automatically from the figure width (min-max decimation
+    keeps the peaks), so there is nothing to tune.
 
     Parameters
     ----------
     dataset : SensorDataset
-        Source dataset (provides the file index, dt and the axis map).
-    devices : list of str or None
-        Devices to show, in column order. ``None`` uses ``dataset.devices``.
-    titles : dict or None
-        Per-device column label, e.g. ``{"MOF00134": "Subterraneo"}``.
+        Source object (provides the devices, titles, colors, file index, dt
+        and the axis map).
     factor : float, default 1.0
         Multiplier on the raw acceleration. The raw .h5 is in g, so 1.0 shows g
         and 9.81 shows m/s^2.
     unit : str, default "g"
         Unit label for the y axes.
-    number_max_points : int or None, default None
-        Optional override for the points drawn per series. ``None`` resolves it
-        automatically from the figure width (recommended); pass a number only
-        to force finer or coarser detail.
     window : tuple or None
-        ``(start, end)`` (datetime or string) drawn as red dashed lines.
+        ``(start, end)`` (datetime or string) drawn as red dashed lines. ``None``
+        uses the object's window when it is already windowed.
     xlim : tuple or None
         ``(start, end)`` (datetime or string) to zoom the x axis to a date
         range. Independent of ``window``: you can zoom to a region and still
@@ -162,9 +159,8 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
 
-    devices = list(devices) if devices is not None else list(dataset.devices)
-    titles = titles if titles is not None else getattr(dataset, "titles", {})
-    titles = titles or {}
+    devices = list(dataset.devices)
+    titles = getattr(dataset, "titles", {}) or {}
     n_dev = len(devices)
 
     if figsize is None:
@@ -173,13 +169,9 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
     fig, axes = plt.subplots(3, n_dev, figsize=figsize, sharex="col", squeeze=False)
     dpi = fig.get_dpi()
 
-    # Points per series. By default it is the figure width in pixels (you
-    # cannot draw more points than pixels); min-max keeps the peaks. Passing
-    # number_max_points overrides it for finer or coarser detail.
-    if number_max_points is not None:
-        target = max(2, int(number_max_points))
-    else:
-        target = max(200, int(figsize[0] * dpi / max(1, n_dev)))
+    # Points per series = figure width in pixels (you cannot draw more points
+    # than pixels); min-max decimation keeps the transient peaks.
+    target = max(200, int(figsize[0] * dpi / max(1, n_dev)))
 
     rows = [("x", "Acc X [%s]" % unit),
             ("y", "Acc Y [%s]" % unit),

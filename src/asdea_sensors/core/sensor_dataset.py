@@ -436,6 +436,10 @@ class SensorDataset:
         """PGA/PGV/PGD for every device. See DeviceHandle.peaks."""
         return self._broadcast("peaks", component=component, **kwargs)
 
+    def ambient_mean(self, config, component="x"):
+        """Ambient mean spectrum for every device. See DeviceHandle.ambient_mean."""
+        return self._broadcast("ambient_mean", config=config, component=component)
+
     # -- building characterization (multi-sensor) ----------------------
     # These use the sensor geometry (config.SENSOR_GEOMETRY) and work across
     # all sensors, not just a pair. See the building.* modules.

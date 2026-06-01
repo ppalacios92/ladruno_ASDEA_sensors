@@ -65,31 +65,31 @@ def plot_newmark(result, component="x", quantity="PSa", unit=None,
     return _finish(fig, save, "newmark_{}_{}".format(quantity, component))
 
 
-def plot_newmark_all(dataset, devices=None, start_time=None, end_time=None, component="x",
-                     quantity="PSa", zeta=0.05, max_period=3.0, dT=0.02,
-                     factor=1.0, unit=None, baseline=False, fmin=None, fmax=None,
+def plot_newmark_all(dataset, specs, component="x", quantity="PSa", unit=None,
                      group=True, figsize=None, xlim=None, ylim=None, save=None):
-    """Newmark spectra of several sensors over a window (no manual loop).
+    """Plot precomputed Newmark spectra of several sensors (no compute here).
 
-    Reads each device, optionally baseline-corrects and band-passes it, computes
-    the Newmark spectrum and plots the chosen ``quantity`` (PSa by default).
+    The spectra are computed on the object and this function only draws them::
+
+        specs = ds.newmark(component="x", zeta=0.05, max_period=3.0, dT=0.02)
+        plot_newmark_all(ds, specs, component="x", quantity="PSa", group=True)
 
     Parameters
     ----------
     dataset : SensorDataset
-    devices : list of str
-    start_time, end_time : datetime or str
-        Window applied to every device.
+        Source object; used only for the device order and colors.
+    specs : dict
+        Output of ``dataset.newmark(component=..., ...)``, i.e.
+        ``{device: newmark_result}``.
     component : str, default "x"
+        Label only (which component the spectra were computed for).
     quantity : {"PSa", "PSv", "Sd", "Sv", "Sa"}, default "PSa"
-    zeta, max_period, dT, factor : floats
-        Newmark parameters (``factor=1/9.81`` to show acceleration spectra in g).
-    baseline : bool, default True
-    fmin, fmax : float or None
-        Band-pass edges applied before the spectrum when given.
+        Which curve of the result to draw.
+    unit : str or None, default None
+        Y-axis unit label; if None the default SI unit for ``quantity`` is used.
     group : bool, default True
         ``True`` overlays every device on one axes; ``False`` one figure each.
-    unit, figsize, xlim, ylim, save
+    figsize, xlim, ylim, save
         Plot controls.
 
     Returns
@@ -97,26 +97,11 @@ def plot_newmark_all(dataset, devices=None, start_time=None, end_time=None, comp
     list or str or None
     """
     import matplotlib.pyplot as plt
-    from ..seismic import newmark as _newmark
 
     units = {"PSa": "m/s^2", "Sa": "m/s^2", "PSv": "m/s", "Sv": "m/s", "Sd": "m"}
     ylabel_unit = unit if unit is not None else units.get(quantity, "")
-    devices = list(dataset.devices) if devices is None else list(devices)
+    devices = [d for d in dataset.devices if d in specs]
     colors = getattr(dataset, "device_colors", {}) or {}
-
-    specs = {}
-    for device in devices:
-        handle = dataset.device(device)
-        if start_time is not None and end_time is not None:
-            handle = handle.get_window(start_time, end_time)
-        if baseline:
-            handle = handle.baseline()
-        if fmin is not None and fmax is not None:
-            handle = handle.filter(fmin, fmax, engine="scipy")
-        sig = handle.signal(components="all")
-        specs[device] = _newmark.compute(sig.component(component), sig.dt,
-                                         zeta=zeta, max_period=max_period,
-                                         dT=dT, factor=factor)
 
     if not group:
         paths = []

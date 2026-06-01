@@ -106,27 +106,25 @@ def plot_psd_bands(result, band, figsize=None, xlim=None, ylim=None,
     return _finish(fig, save, "psd_bands")
 
 
-def plot_psd_all(dataset, devices=None, start_time=None, end_time=None, component="x",
-                 nperseg=512, noverlap=256, window="hann", bands=None,
-                 baseline=False, fmin=None, fmax=None, group=True,
+def plot_psd_all(dataset, results, component="x", group=True,
                  figsize=None, xlim=(0, 25), ylim=None, save=None):
-    """PSD of several sensors over a window (no manual loop).
+    """Plot precomputed Welch PSDs of several sensors (no compute here).
 
-    Reads each device, optionally baseline-corrects and band-passes it, computes
-    the Welch PSD and overlays the curves; also returns the per-device results
-    so band energy can be compared with :func:`plot_psd_bands`.
+    The PSDs are computed on the object and this function only draws them::
+
+        results = ds.psd(component="x", nperseg=512, noverlap=256)
+        plot_psd_all(ds, results, component="x", group=True)
+        plot_psd_bands(results, band=(2.0, 8.0))
 
     Parameters
     ----------
     dataset : SensorDataset
-    devices : list of str
-    start_time, end_time : datetime or str
+        Source object; used only for the device order and colors.
+    results : dict
+        Output of ``dataset.psd(component=..., ...)``, i.e.
+        ``{device: psd_result}``.
     component : str, default "x"
-    nperseg, noverlap, window, bands
-        Welch parameters (see ``seismic.psd.compute``).
-    baseline : bool, default True
-    fmin, fmax : float or None
-        Band-pass edges applied before the PSD when given.
+        Label only (which component the results were computed for).
     group : bool, default True
         ``True`` overlays every device; ``False`` one figure each.
     figsize, xlim, ylim, save
@@ -134,27 +132,12 @@ def plot_psd_all(dataset, devices=None, start_time=None, end_time=None, componen
 
     Returns
     -------
-    dict
-        ``{device: psd_result}`` (use it with ``plot_psd_bands``).
+    None or str or list
     """
     import matplotlib.pyplot as plt
-    from ..seismic import psd as _psd
 
-    devices = list(dataset.devices) if devices is None else list(devices)
+    devices = [d for d in dataset.devices if d in results]
     colors = getattr(dataset, "device_colors", {}) or {}
-    results = {}
-    for device in devices:
-        handle = dataset.device(device)
-        if start_time is not None and end_time is not None:
-            handle = handle.get_window(start_time, end_time)
-        if baseline:
-            handle = handle.baseline()
-        if fmin is not None and fmax is not None:
-            handle = handle.filter(fmin, fmax, engine="scipy")
-        sig = handle.signal(components="all")
-        results[device] = _psd.compute(sig.component(component), sig.dt,
-                                       nperseg=nperseg, noverlap=noverlap,
-                                       window=window, bands=bands)
 
     if group:
         fig, ax = plt.subplots(figsize=figsize or (10, 5))
@@ -173,9 +156,10 @@ def plot_psd_all(dataset, devices=None, start_time=None, end_time=None, componen
         if ylim is not None:
             ax.set_ylim(ylim)
         fig.tight_layout()
-        _finish(fig, save, "psd_all")
-    else:
-        for device in devices:
-            plot_psd(results[device], component=component, figsize=figsize,
-                     xlim=xlim, ylim=ylim, save=save)
-    return results
+        return _finish(fig, save, "psd_all")
+
+    paths = []
+    for device in devices:
+        paths.append(plot_psd(results[device], component=component,
+                              figsize=figsize, xlim=xlim, ylim=ylim, save=save))
+    return paths

@@ -155,27 +155,25 @@ def plot_spectrum(analysis, figsize=None, xlim=None, ylim=None, save=None):
     return _finish(fig, save, "ambient_spectrum")
 
 
-def plot_mean_spectrum_all(dataset, devices=None, start_time=None, end_time=None,
-                           config=None, component="x", baseline=False, fmin=None,
-                           fmax=None, group=True, figsize=None, xlim=(0, 25),
-                           ylim=None, save=None):
-    """Ambient mean spectra (STA/LTA windows) for a list of sensors.
+def plot_mean_spectrum_all(dataset, means, component="x", group=True,
+                           figsize=None, xlim=(0, 25), ylim=None, save=None):
+    """Plot precomputed ambient mean spectra of several sensors (no compute).
 
-    For each device: read the window, optionally baseline-correct / band-pass,
-    run the ambient pipeline (STA/LTA windowing -> taper -> FFT -> Konno-Ohmachi
-    -> average) and read the mean spectrum and its dominant frequency.
+    The mean spectra are computed on the object and this function only draws
+    them::
+
+        means = ds.ambient_mean(config, component="x")
+        plot_mean_spectrum_all(ds, means, component="x", group=True)
 
     Parameters
     ----------
     dataset : SensorDataset
-    devices : list of str
-    start_time, end_time : datetime or str
-    config : dict
-        Ambient configuration (Fs, STA, LTA, vent, vmin, vmax, p, bexp, ...).
+        Source object; used only for the device order and colors.
+    means : dict
+        Output of ``dataset.ambient_mean(config, component)``, i.e.
+        ``{device: {"freqs": ..., "spectrum": ..., "f_dom": ...}}``.
     component : {"x", "y", "z"}, default "x"
-    baseline : bool, default True
-    fmin, fmax : float or None
-        Band-pass edges applied before the ambient analysis when given.
+        Label only (which component the means were computed for).
     group : bool, default True
         ``True`` overlays the mean spectra of all devices; ``False`` is one
         figure per device.
@@ -189,24 +187,8 @@ def plot_mean_spectrum_all(dataset, devices=None, start_time=None, end_time=None
     """
     import matplotlib.pyplot as plt
 
-    devices = list(dataset.devices) if devices is None else list(devices)
+    devices = [d for d in dataset.devices if d in means]
     colors = getattr(dataset, "device_colors", {}) or {}
-    means = {}
-    for device in devices:
-        handle = dataset.device(device)
-        if start_time is not None and end_time is not None:
-            handle = handle.get_window(start_time, end_time)
-        if baseline:
-            handle = handle.baseline()
-        if fmin is not None and fmax is not None:
-            handle = handle.filter(fmin, fmax, engine="scipy")
-        amb = handle.signal(components="all").ambient(config, component=component)
-        amb.average()
-        f_dom = 1.0 / amb.dominant_period if amb.dominant_period else float("nan")
-        means[device] = {"freqs": amb.freqs[:, 0],
-                         "spectrum": amb.mean_spectrum,
-                         "f_dom": f_dom}
-
     dom = {d: means[d]["f_dom"] for d in devices}
 
     if group:

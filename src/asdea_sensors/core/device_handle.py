@@ -567,6 +567,30 @@ class DeviceHandle:
 
         return self._cached_analysis("stft", params, builder, log)
 
+    def ambient_mean(self, config, component="x"):
+        """Ambient mean spectrum for this device.
+
+        Runs the ambient pipeline (STA/LTA windowing -> taper -> FFT ->
+        Konno-Ohmachi -> average) on the conditioned signal and returns the
+        mean spectrum with its dominant frequency.
+
+        Parameters
+        ----------
+        config : dict
+            Ambient configuration (Fs, STA, LTA, vent, vmin, vmax, p, bexp, ...).
+        component : {"x", "y", "z"}, default "x"
+
+        Returns
+        -------
+        dict
+            ``{"freqs": ..., "spectrum": ..., "f_dom": ...}``.
+        """
+        amb = self.signal(components="all").ambient(config, component=component)
+        amb.average()
+        f_dom = 1.0 / amb.dominant_period if amb.dominant_period else float("nan")
+        freqs = amb.freqs[:, 0] if getattr(amb.freqs, "ndim", 1) == 2 else amb.freqs
+        return {"freqs": freqs, "spectrum": amb.mean_spectrum, "f_dom": f_dom}
+
     # -- structural (single sensor side) -------------------------------
 
     def modal_tracking(self, component="x", window="10min", overlap=0.5,

@@ -105,46 +105,29 @@ def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
     return _finish(fig, save, "signal_{}_{}".format(prefix, signal.device))
 
 
-def _read_sigs(dataset, devices, start_time, end_time, baseline, fmin, fmax,
-               kind):
-    """Read each device over the window, optionally correct/filter/derive."""
+def _read_sigs(dataset):
+    """Read every device's conditioned signal straight from the object."""
     sigs = {}
-    for device in devices:
-        handle = dataset.device(device)
-        if start_time is not None and end_time is not None:
-            handle = handle.get_window(start_time, end_time)
-        if baseline:
-            handle = handle.baseline()
-        if fmin is not None and fmax is not None:
-            handle = handle.filter(fmin, fmax, engine="scipy")
-        if kind in ("vel", "disp"):
-            handle = handle.derive()
-        sigs[device] = handle.signal(components="all")
+    for device in dataset.devices:
+        sigs[device] = dataset.device(device).signal(components="all")
     return sigs
 
 
-def plot_signals_all(dataset, devices=None, start_time=None, end_time=None,
-                     components="all", kind="acc", factor=1.0, unit=None,
-                     time_axis="absolute", baseline=False, fmin=None, fmax=None,
-                     group=False, figsize=None, xlim=None, ylim=None, save=None):
-    """Plot the time histories of several sensors over the same window.
+def plot_signals_all(dataset, components="all", kind="acc", factor=1.0,
+                     unit=None, time_axis="absolute", group=False,
+                     figsize=None, xlim=None, ylim=None, save=None):
+    """Plot the time histories of every sensor already held by the object.
 
-    Pass the device list directly (no manual loop).
+    The dataset is read as conditioned (its window / baseline / filter / derive
+    are already applied); this function only draws. For ``kind="vel"`` or
+    ``"disp"`` the object must have been derived (``ds.derive()``).
 
     Parameters
     ----------
     dataset : SensorDataset
-        Source dataset.
-    devices : list of str
-        Device ids to plot, e.g. ``["MOF00134", "MNAT0031", "MOF00135"]``.
-    start_time, end_time : datetime or str
-        Window applied to every device.
+        Source object; provides the signals, device order and colors.
     components, kind, factor, unit, time_axis, figsize, xlim, ylim
         Same meaning as :func:`plot_signals`.
-    baseline : bool, default False
-        Apply baseline correction before plotting.
-    fmin, fmax : float or None, default None
-        Band-pass edges; when both are given the signal is filtered first.
     group : bool, default False
         ``False`` draws one figure per device. ``True`` overlays every device
         on the same axes (one row per component, with a legend).
@@ -167,11 +150,10 @@ def plot_signals_all(dataset, devices=None, start_time=None, end_time=None,
     title_word, prefix, default_unit = labels[kind]
     unit = unit if unit is not None else default_unit
     comps = ("x", "y", "z") if components == "all" else (components,)
-    devices = list(dataset.devices) if devices is None else list(devices)
+    devices = list(dataset.devices)
     colors = getattr(dataset, "device_colors", {}) or {}
 
-    sigs = _read_sigs(dataset, devices, start_time, end_time, baseline,
-                      fmin, fmax, kind)
+    sigs = _read_sigs(dataset)
 
     if not group:
         paths = []
