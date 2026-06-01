@@ -20,9 +20,10 @@ def compute(acc_x, acc_y, dt, rotd=50, damping=0.05, angle_step=5,
         The two horizontal acceleration components in m/s^2.
     dt : float
         Sampling interval in seconds.
-    rotd : {0, 50, 100}, default 50
-        Percentile to return. The full 0-180 PSa matrix is also returned so
-        the caller can cache it and reuse it for other percentiles.
+    rotd : int or sequence of int, default 50
+        Percentile(s) to return, e.g. ``50`` or ``[0, 50, 100]``. The full
+        0-180 PSa matrix is computed once and every requested percentile is
+        extracted from it, each under its own ``ROTD<p>`` key.
     damping : float, default 0.05
     angle_step : int, default 5
         Rotation step in degrees.
@@ -51,9 +52,14 @@ def compute(acc_x, acc_y, dt, rotd=50, damping=0.05, angle_step=5,
     # Shape: (n_periods, n_angles)
     psa_matrix = np.array(psa_matrix).T
 
-    rotd_spectrum = np.percentile(psa_matrix, rotd, axis=1)
-    idx = np.argmax(psa_matrix == rotd_spectrum[:, None], axis=1)
-    rotd_angle = angles[idx]
+    # One or several percentiles, all taken from the same PSa matrix.
+    percentiles = [rotd] if np.isscalar(rotd) else list(rotd)
+    rotd_keys = {}
+    for p in percentiles:
+        spectrum = np.percentile(psa_matrix, p, axis=1)
+        idx = np.argmax(psa_matrix == spectrum[:, None], axis=1)
+        rotd_keys["ROTD%d" % p] = spectrum
+        rotd_keys["angle_rotd%d" % p] = angles[idx]
 
     geo_mean = np.sqrt(np.abs(H1 * H2))
     gm_result = newmark.compute(geo_mean, dt, damping, max_period=max_period, dT=dT)
@@ -64,12 +70,12 @@ def compute(acc_x, acc_y, dt, rotd=50, damping=0.05, angle_step=5,
     srss = np.sqrt(H1 ** 2 + H2 ** 2)
     srss_result = newmark.compute(srss, dt, damping, max_period=max_period, dT=dT)
 
-    return {
+    out = {
         "T": T,
-        f"ROTD{rotd}": rotd_spectrum,
-        f"angle_rotd{rotd}": rotd_angle,
         "PSa_matrix": psa_matrix,
         "PSa_geo_mean": gm_result["PSa"],
         "PSa_arith_mean": am_result["PSa"],
         "PSa_SRSS": srss_result["PSa"],
     }
+    out.update(rotd_keys)
+    return out

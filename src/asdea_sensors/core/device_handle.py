@@ -342,9 +342,10 @@ class DeviceHandle:
         ----------
         comp_x, comp_y : str
             The two horizontal components to rotate.
-        rotd : {0, 50, 100}, default 50
-            Which percentile to return. The full 0-180 PSa matrix is computed
-            once and cached, so other percentiles reuse it.
+        rotd : int or sequence of int, default 50
+            Percentile(s) to return, e.g. ``50`` or ``[0, 50, 100]``. The full
+            0-180 PSa matrix is computed once and cached, so several percentiles
+            cost the same as one.
         damping : float, default 0.05
         angle_step : int, default 5
             Rotation step in degrees (0 to 180).
@@ -365,7 +366,7 @@ class DeviceHandle:
                                  dT=dT)
 
         def log(res, cached):
-            return ("[rotd] %s %s/%s rotd=%d -> %d periods (%s)"
+            return ("[rotd] %s %s/%s rotd=%s -> %d periods (%s)"
                     % (self.device, comp_x, comp_y, rotd, len(res["T"]),
                        "cached" if cached else "computed"))
 

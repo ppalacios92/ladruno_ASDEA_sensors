@@ -64,12 +64,14 @@ def plot_rotd_all(dataset, results, rotd=50, layout="auto", group=None,
                   figsize=None, xlim=None, ylim=None, save=None):
     """Plot precomputed RotD spectra (no compute here); layout from shape.
 
-    RotD has one series per sensor (the rotated percentile), so::
+    ``rotd`` may be one percentile or several. Compute them together so they
+    share the PSa matrix::
 
-        results = ds.rotd(comp_x="x", comp_y="y", rotd=50, angle_step=15)
-        plot_rotd_all(ds, results, rotd=50)                 # sensors overlaid
-        plot_rotd_all(ds, results, rotd=50, layout="grid")  # one panel per sensor
-        plot_rotd_all(ds, ds.MOF00135.rotd(rotd=50), rotd=50)   # one sensor, one curve
+        results = ds.rotd(comp_x="x", comp_y="y", rotd=[0, 50, 100], angle_step=15)
+        plot_rotd_all(ds, results, rotd=[0, 50, 100])           # grid: one panel/sensor, 3 curves
+        plot_rotd_all(ds, results, rotd=50)                     # one percentile -> sensors overlaid
+        plot_rotd_all(ds, results, rotd=50, layout="grid")      # one panel per sensor
+        plot_rotd_all(ds, ds.MOF00135.rotd(rotd=[0,50,100]), rotd=[0,50,100])  # one sensor, 3 curves
 
     Parameters
     ----------
@@ -77,19 +79,80 @@ def plot_rotd_all(dataset, results, rotd=50, layout="auto", group=None,
         Source object (device order, colors, titles).
     results : dict or result
         ``ds.rotd(...)`` -> ``{device: rotd_result}``, or a single result.
-    rotd : int, default 50
-        Which percentile key (``ROTD<rotd>``) to draw; must match the compute.
+    rotd : int or sequence of int, default 50
+        Percentile(s) to draw; each must be present in the result
+        (``ROTD<p>``), i.e. it must have been computed.
     layout : {"auto", "grid", "overlay"}, default "auto"
+        With several percentiles the layout is always a grid (one panel per
+        sensor, percentiles overlaid). With one percentile, ``overlay`` puts
+        every sensor on one axes and ``grid`` gives one panel each.
     group : bool or None
         Back-compat alias (``True`` -> overlay, ``False`` -> grid).
     figsize, xlim, ylim, save
         Plot controls.
     """
-    key = "ROTD%d" % rotd
-    return _panels.draw_analysis(
-        dataset, results,
-        curve=lambda r: (r["T"], r[key]),
-        layout=layout, group=group, yscale="linear",
-        xlabel="Period T [s]", ylabel_unit="m/s^2",
-        title_word="RotD%d PSa" % rotd, name="rotd_all_%d" % rotd,
-        figsize=figsize, xlim=xlim, ylim=ylim, save=save)
+    import matplotlib.pyplot as plt
+
+    pcts = [rotd] if isinstance(rotd, (int, float)) else list(rotd)
+    layout = _panels._layout_from_group(layout, group)
+    colors = getattr(dataset, "device_colors", {}) or {}
+    titles = getattr(dataset, "titles", {}) or {}
+
+    def present(res):
+        return [p for p in pcts if ("ROTD%d" % p) in res]
+
+    def style(ax):
+        ax.set_xlabel("Period T [s]")
+        ax.grid(True, alpha=0.3)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+
+    is_multi = isinstance(results, dict) and any(d in results for d in dataset.devices)
+
+    # -- single sensor: requested percentiles overlaid on one axes ----
+    if not is_multi:
+        fig, ax = plt.subplots(figsize=figsize or (9, 5))
+        for i, p in enumerate(present(results)):
+            ax.plot(results["T"], results["ROTD%d" % p], lw=1.3,
+                    color="C%d" % i, label="RotD%d" % p)
+        ax.set_ylabel("PSa [m/s^2]")
+        ax.legend(fontsize=8)
+        style(ax)
+        fig.tight_layout()
+        return _panels._finish(fig, save, "rotd_all")
+
+    devices = [d for d in dataset.devices if d in results]
+
+    # -- one percentile, overlay every sensor on one axes -------------
+    if len(pcts) == 1 and layout != "grid":
+        key = "ROTD%d" % pcts[0]
+        fig, ax = plt.subplots(figsize=figsize or (10, 5))
+        for j, d in enumerate(devices):
+            ax.plot(results[d]["T"], results[d][key], lw=1.1,
+                    color=colors.get(d, "C%d" % (j % 10)), label=d)
+        ax.set_ylabel("RotD%d PSa [m/s^2]" % pcts[0])
+        ax.legend(fontsize=8)
+        style(ax)
+        fig.tight_layout()
+        return _panels._finish(fig, save, "rotd_all_%d" % pcts[0])
+
+    # -- grid: one panel per sensor, percentiles overlaid -------------
+    n = len(devices)
+    fig, axes = plt.subplots(1, n, figsize=figsize or (3.6 * n, 4.2),
+                             squeeze=False)
+    for j, d in enumerate(devices):
+        ax = axes[0][j]
+        res = results[d]
+        for i, p in enumerate(present(res)):
+            ax.plot(res["T"], res["ROTD%d" % p], lw=1.1, color="C%d" % i,
+                    label="RotD%d" % p)
+        ax.set_title("%s - %s" % (d, titles.get(d, "")), fontsize=9,
+                     fontweight="bold")
+        if j == 0:
+            ax.set_ylabel("PSa [m/s^2]")
+        ax.legend(fontsize=7)
+        style(ax)
+    fig.tight_layout()
+    return _panels._finish(fig, save, "rotd_all")
