@@ -387,3 +387,69 @@ def plot_windows_all(dataset, results, layout="auto", group=None,
                          fontweight="bold")
     fig.tight_layout()
     return _panels._finish(fig, save, "ambient_windows_all")
+
+
+def plot_spectrum_all(dataset, results, peak_spacing_hz=0.2, num_peaks=4,
+                      min_freq=0.0, figsize=None, xlim=None, ylim=None,
+                      save=None):
+    """Per-sensor ambient spectra: all windows (gray) + mean (color) + peaks.
+
+    Like :func:`plot_spectrum` but for every sensor at once: one panel per
+    sensor (log frequency), each with every window spectrum in light gray, the
+    mean in the sensor color, and the strongest peaks marked. Feed the broadcast
+    result of ``ds.ambient(...)``.
+
+    Returns ``{device: [{"freq", "period", "amplitude"}, ...]}``.
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from scipy.signal import find_peaks
+
+    devices = [d for d in dataset.devices if d in results]
+    colors = getattr(dataset, "device_colors", {}) or {}
+    pastel = ["mediumaquamarine", "lightcoral", "cornflowerblue", "plum"]
+    n = len(devices)
+    fig, axes = plt.subplots(n, 1, figsize=figsize or (10, 2.7 * n),
+                             squeeze=False)
+    out = {}
+    for i, d in enumerate(devices):
+        ax = axes[i][0]
+        r = results[d]
+        f = np.asarray(r["freqs"])
+        win = r.get("per_window_smoothed")
+        if win is None:
+            win = r.get("per_window_spectra")
+        win = np.asarray(win)
+        mean = np.asarray(r["mean_spectrum"])
+        if win.ndim == 2:
+            for k in range(win.shape[1]):
+                ax.semilogx(f, win[:, k], color="lightgray", alpha=0.4)
+        elif win.size:
+            ax.semilogx(f, win, color="lightgray", alpha=0.4)
+        ax.semilogx(f, mean, color=colors.get(d, "C%d" % (i % 10)), lw=2,
+                    label="%s mean" % d)
+        df = f[1] - f[0]
+        pk, _ = find_peaks(mean, distance=max(1, int(peak_spacing_hz / df)))
+        pk = [p for p in pk if f[p] >= min_freq]
+        top = sorted(pk, key=lambda j: mean[j], reverse=True)[:num_peaks]
+        peaks = []
+        for j, idx in enumerate(top):
+            fi, amp = f[idx], mean[idx]
+            Ti = 1.0 / fi if fi else 0.0
+            ax.plot(fi, amp, "o", color=pastel[j % len(pastel)], markersize=6,
+                    label="f = %.2f Hz / T = %.2f s" % (fi, Ti))
+            peaks.append({"freq": fi, "period": Ti, "amplitude": amp})
+        ax.set_ylabel("%s\nAmplitude" % d)
+        ax.grid(True, which="both", ls="--", alpha=0.5)
+        ax.legend(fontsize=7, loc="upper left")
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        out[d] = peaks
+    axes[-1][0].set_xlabel("Frequency [Hz]", fontweight="bold")
+    axes[0][0].set_title("Ambient spectra (all windows + mean) - %d sensors" % n,
+                         fontweight="bold")
+    fig.tight_layout()
+    _panels._finish(fig, save, "ambient_spectrum_all")
+    return out
