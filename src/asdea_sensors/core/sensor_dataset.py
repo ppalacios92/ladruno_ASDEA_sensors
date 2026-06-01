@@ -69,7 +69,7 @@ class SensorDataset:
     def __init__(self, path, pattern="*.h5", date_source="filename",
                  devices=None, titles=None, device_colors=None,
                  load_mode="auto", ram_fraction=0.5, axes_map=None,
-                 verbose=True):
+                 parallel=False, n_jobs=4, verbose=True):
         self.path = path
         self.pattern = pattern
         self.date_source = date_source
@@ -77,9 +77,13 @@ class SensorDataset:
         self.ram_fraction = ram_fraction
         self.verbose = verbose
 
-        # Control properties for the internal batch engine.
-        self.n_jobs = 4
-        self.parallel = True
+        # Batch engine for broadcasts (ds.fourier(), ds.psd(), ...).
+        # parallel=False (default) runs them in-process, which reuses the shared
+        # conditioned-signal cache across analyses and avoids the per-process
+        # spawn + numba recompile cost; best for a few sensors over a window.
+        # parallel=True spreads devices over n_jobs processes (no shared cache).
+        self.n_jobs = n_jobs
+        self.parallel = parallel
 
         # Build the file index (this only reads metadata, never signal data).
         self._index = H5Index(path, pattern=pattern, date_source=date_source)
