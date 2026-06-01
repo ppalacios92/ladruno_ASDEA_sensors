@@ -404,23 +404,41 @@ class SensorDataset:
     # -- broadcast helper ----------------------------------------------
 
     def _broadcast(self, method_name, **kwargs):
-        """Run a per-device handle method over every device, return a dict."""
+        """Run a per-device handle method over every device, return a dict.
+
+        Every broadcast analysis (fourier, psd, newmark, rotd, arias, peaks,
+        ambient, ...) goes through here, so ``parallel``/``n_jobs`` apply to all
+        of them. When ``verbose`` it announces whether the run is pooled or
+        serial.
+        """
         def run(dev):
             # device() carries the dataset window so broadcasts read the same
             # conditioned window as ds.MOF00135 and share its cached signal.
             handle = self.device(dev)
             return getattr(handle, method_name)(**kwargs)
 
-        if self.parallel:
+        devices = list(self.devices)
+        n = len(devices)
+        use_pool = bool(self.parallel) and self.n_jobs not in (None, 1) and n > 1
+
+        if use_pool:
+            workers = min(int(self.n_jobs), n)
+            if self.verbose:
+                print("[pool] %s -> %d devices on %d threads"
+                      % (method_name, n, workers))
             from ..batch.processor import BatchEngine
             engine = BatchEngine(n_jobs=self.n_jobs, parallel=True)
-            try:
-                results = engine.map(run, self.devices)
-                return dict(zip(self.devices, results))
-            except NotImplementedError:
-                # Batch engine not available; fall back to a serial loop.
-                pass
-        return {dev: run(dev) for dev in self.devices}
+            results = dict(zip(devices, engine.map(run, devices)))
+            if self.verbose:
+                print("[pool] %s done (%d devices)" % (method_name, n))
+            return results
+
+        if self.verbose:
+            why = ("parallel=False" if not self.parallel
+                   else "n_jobs=1" if self.n_jobs in (None, 1)
+                   else "single device")
+            print("[serial] %s -> %d device(s) (%s)" % (method_name, n, why))
+        return {dev: run(dev) for dev in devices}
 
     # -- broadcast analysis (all devices) ------------------------------
     # Each one runs per device through the batch engine and returns a dict
