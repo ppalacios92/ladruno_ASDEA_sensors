@@ -69,8 +69,8 @@ def plot_fourier(result, component="x", smooth=None, unit=None,
 
 
 def plot_fourier_all(dataset, devices=None, start_time=None, end_time=None,
-                     components=("x", "y", "z"), baseline=True,
-                     fmin=0.1, fmax=24.9, smooth=None, bexp=40,
+                     components=("x", "y", "z"), baseline=False,
+                     fmin=None, fmax=None, smooth=None, bexp=40,
                      overlay_raw=False, group=False, num_frequencies=4,
                      figsize=None, xlim=(0, 25), ylim=None, save=None):
     """Fourier spectra of several sensors over a window (no manual loop).
@@ -129,9 +129,14 @@ def plot_fourier_all(dataset, devices=None, start_time=None, end_time=None,
         base = dataset.device(device)
         if start_time is not None and end_time is not None:
             base = base.get_window(start_time, end_time)
+        # The object may already be conditioned (ds.baseline()/filter()); only
+        # apply extra steps here when explicitly requested.
+        proc = base
         if baseline:
-            base = base.baseline()
-        filt_by_dev[device] = spectra(base.filter(fmin, fmax, engine="scipy"))
+            proc = proc.baseline()
+        if fmin is not None and fmax is not None:
+            proc = proc.filter(fmin, fmax, engine="scipy")
+        filt_by_dev[device] = spectra(proc)
         if overlay_raw and not group:
             raw_by_dev[device] = spectra(base)
 

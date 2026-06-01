@@ -60,7 +60,7 @@ def plot_rotd(result, rotd=(0, 50, 100), figsize=None, xlim=None, ylim=None,
 
 def plot_rotd_all(dataset, devices=None, start_time=None, end_time=None, comp_x="x", comp_y="y",
                   rotd=50, damping=0.05, angle_step=15, max_period=3.0, dT=0.02,
-                  baseline=True, fmin=None, fmax=None, figsize=None, xlim=None,
+                  baseline=False, fmin=None, fmax=None, figsize=None, xlim=None,
                   ylim=None, save=None):
     """One RotD percentile spectrum per sensor, overlaid (no manual loop).
 

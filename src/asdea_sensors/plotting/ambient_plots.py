@@ -156,7 +156,7 @@ def plot_spectrum(analysis, figsize=None, xlim=None, ylim=None, save=None):
 
 
 def plot_mean_spectrum_all(dataset, devices=None, start_time=None, end_time=None,
-                           config=None, component="x", baseline=True, fmin=None,
+                           config=None, component="x", baseline=False, fmin=None,
                            fmax=None, group=True, figsize=None, xlim=(0, 25),
                            ylim=None, save=None):
     """Ambient mean spectra (STA/LTA windows) for a list of sensors.

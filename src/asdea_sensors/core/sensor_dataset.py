@@ -142,6 +142,12 @@ class SensorDataset:
         # every per-sensor read is restricted to it. None = whole record.
         self._default_window = None
 
+        # Dataset-level processing pipeline (set by baseline()/filter()/derive()).
+        # Each read replays these steps on the SignalData, so the object carries
+        # its own conditioning and the plots only visualize it. List of
+        # (step_name, kwargs).
+        self._pipeline = []
+
         self.units = "SI"
 
         if self.verbose:
@@ -287,6 +293,62 @@ class SensorDataset:
         dev0 = self.devices[0] if self.devices else None
         bounds = _window.window_from_start(self._index, dev0, start, length)
         return self._windowed_copy(bounds)
+
+    # -- processing pipeline (whole dataset) ---------------------------
+    # baseline/filter/derive return a new dataset carrying the step. Every read
+    # replays the pipeline, so the object is "already conditioned" and the plots
+    # only visualize it. Keep raw and conditioned datasets side by side.
+
+    def _pipelined_copy(self, step, kwargs, message):
+        new = copy.copy(self)
+        new._pipeline = self._pipeline + [(step, dict(kwargs))]
+        new._cache_obj = ResultCache()
+        new._cache = new._cache_obj._store
+        if self.verbose:
+            print("[%s] %s" % (step, message))
+        return new
+
+    def baseline(self, method="polynomial", components="all"):
+        """Return a dataset with a baseline-correction step added to the pipeline.
+
+        Parameters
+        ----------
+        method : {"polynomial", "linear", "mean"}, default "polynomial"
+        components : {"x", "y", "z", "all"}, default "all"
+        """
+        return self._pipelined_copy(
+            "baseline", {"method": method, "components": components},
+            "%s on %s" % (method, components))
+
+    def filter(self, fmin, fmax, engine="obspy", corners=4, zerophase=True,
+               components="all"):
+        """Return a dataset with a band-pass step added to the pipeline.
+
+        Parameters
+        ----------
+        fmin, fmax : float
+            Band edges in Hz.
+        engine : {"obspy", "scipy"}, default "obspy"
+        corners : int, default 4
+            Number of filter corners (the Butterworth order).
+        zerophase : bool, default True
+            Zero-phase (forward-backward) filtering.
+        components : {"x", "y", "z", "all"}, default "all"
+        """
+        # SignalData.filter names the corners argument ``order``.
+        return self._pipelined_copy(
+            "filter",
+            {"fmin": fmin, "fmax": fmax, "engine": engine, "order": corners,
+             "zerophase": zerophase, "components": components},
+            "bandpass %.3g-%.3g Hz (%s, corners=%d, zerophase=%s)"
+            % (fmin, fmax, engine, corners, zerophase))
+
+    def derive(self, method="trapezoid", remove_mean=True, components="all"):
+        """Return a dataset with an integration step (acc->vel->disp) in the pipeline."""
+        return self._pipelined_copy(
+            "derive",
+            {"method": method, "remove_mean": remove_mean, "components": components},
+            "integrate acc -> vel -> disp")
 
     # -- preprocessing -------------------------------------------------
 

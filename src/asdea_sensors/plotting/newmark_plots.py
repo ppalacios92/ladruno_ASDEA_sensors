@@ -67,7 +67,7 @@ def plot_newmark(result, component="x", quantity="PSa", unit=None,
 
 def plot_newmark_all(dataset, devices=None, start_time=None, end_time=None, component="x",
                      quantity="PSa", zeta=0.05, max_period=3.0, dT=0.02,
-                     factor=1.0, unit=None, baseline=True, fmin=None, fmax=None,
+                     factor=1.0, unit=None, baseline=False, fmin=None, fmax=None,
                      group=True, figsize=None, xlim=None, ylim=None, save=None):
     """Newmark spectra of several sensors over a window (no manual loop).
 

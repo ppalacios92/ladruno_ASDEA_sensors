@@ -50,9 +50,13 @@ class DeviceHandle:
         new._resample_dt = self._resample_dt
         return new
 
+    def _pipeline_steps(self):
+        """The full pipeline: the dataset's steps first, then the handle's."""
+        return list(getattr(self.dataset, "_pipeline", [])) + self._pipeline
+
     def _signal_state(self):
         """Hashable fingerprint of the source signal for cache keys."""
-        return (tuple(self._pipeline), self._window, self._resample_dt)
+        return (tuple(self._pipeline_steps()), self._window, self._resample_dt)
 
     def _files(self):
         """Resolve the file paths this handle reads from (window or all)."""
@@ -116,7 +120,7 @@ class DeviceHandle:
         if cached is not None:
             return cached
         sig = self._read_signal(components=components, remove_mean=remove_mean)
-        for step, kw in self._pipeline:
+        for step, kw in self._pipeline_steps():
             sig = getattr(sig, step)(**kw)
         self._signal_cache[cache_key] = sig
         return sig

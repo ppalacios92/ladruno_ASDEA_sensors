@@ -108,7 +108,7 @@ def plot_psd_bands(result, band, figsize=None, xlim=None, ylim=None,
 
 def plot_psd_all(dataset, devices=None, start_time=None, end_time=None, component="x",
                  nperseg=512, noverlap=256, window="hann", bands=None,
-                 baseline=True, fmin=None, fmax=None, group=True,
+                 baseline=False, fmin=None, fmax=None, group=True,
                  figsize=None, xlim=(0, 25), ylim=None, save=None):
     """PSD of several sensors over a window (no manual loop).
 
