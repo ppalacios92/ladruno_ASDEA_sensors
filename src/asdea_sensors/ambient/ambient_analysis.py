@@ -170,11 +170,19 @@ class AmbientAnalysis:
         return self
 
     def fft(self, apply_filter=False):
-        """Step 4: FFT of each window."""
+        """Step 4: FFT of each window.
+
+        ``f1``/``f2`` are only needed when ``apply_filter=True``; otherwise they
+        default to the full band so the config can omit them.
+        """
         if "taper" not in self._done:
             self.taper()
-        f1 = float(self.config["f1"])
-        f2 = float(self.config["f2"])
+        if apply_filter:
+            f1 = float(self.config["f1"])
+            f2 = float(self.config["f2"])
+        else:
+            f1 = float(self.config.get("f1", 0.0))
+            f2 = float(self.config.get("f2", self.fs / 2.0))
         self.freqs, self.fft_complex, self.fft_abs = _fft_windows.compute(
             self.fs, self.tapered_windows, apply_filter, f1, f2)
         if "fft" not in self._done:
