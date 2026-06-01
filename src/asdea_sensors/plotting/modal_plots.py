@@ -17,13 +17,17 @@ def _finish(fig, save, default_name):
     return fname
 
 
-def plot_modal_tracking(result, save=None):
+def plot_modal_tracking(result, figsize=None, xlim=None, ylim=None, save=None):
     """Plot the tracked modal frequencies against time.
 
     Parameters
     ----------
     result : dict
         Output of ``structural.modal_tracking.compute``.
+    figsize : tuple or None, default None
+        Figure size; if None a default is used.
+    xlim, ylim : tuple or None, default None
+        Axis limits applied when not None.
     save : str or None, default None
     """
     import numpy as np
@@ -32,7 +36,7 @@ def plot_modal_tracking(result, save=None):
     t = np.asarray(result["t"])
     freqs = np.asarray(result["freqs"])
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=figsize or (10, 5))
     if freqs.ndim == 1:
         ax.plot(t, freqs, ".-", lw=1.0, ms=4, color="C0")
     else:
@@ -46,6 +50,10 @@ def plot_modal_tracking(result, save=None):
     ax.set_ylabel("Modal frequency [Hz]")
     ax.set_title("Modal frequency tracking", fontweight="bold")
     ax.grid(True, alpha=0.3)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     return _finish(fig, save, "modal_tracking")

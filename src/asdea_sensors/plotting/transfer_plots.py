@@ -17,13 +17,18 @@ def _finish(fig, save, default_name):
     return fname
 
 
-def plot_transfer_function(result, save=None):
+def plot_transfer_function(result, figsize=None, xlim=None, ylim=None,
+                           save=None):
     """Plot a transfer function magnitude and mark the modal frequencies.
 
     Parameters
     ----------
     result : dict
         Output of ``structural.transfer_function.compute``.
+    figsize : tuple or None, default None
+        Figure size; if None a default is used.
+    xlim, ylim : tuple or None, default None
+        Axis limits applied when not None.
     save : str or None, default None
     """
     import numpy as np
@@ -32,7 +37,7 @@ def plot_transfer_function(result, save=None):
     f = result["f"]
     h = np.abs(result["H"])
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=figsize or (10, 5))
     ax.plot(f, h, lw=1.0, color="C0", label="|H(f)|")
 
     modal_freqs = result.get("modal_freqs")
@@ -49,6 +54,10 @@ def plot_transfer_function(result, save=None):
     ax.set_title("Transfer function", fontweight="bold")
     ax.grid(True, alpha=0.3)
     ax.legend()
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     return _finish(fig, save, "transfer_function")

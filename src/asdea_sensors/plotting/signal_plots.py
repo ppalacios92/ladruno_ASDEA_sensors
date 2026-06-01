@@ -21,7 +21,8 @@ def _finish(fig, save, default_name):
     return fname
 
 
-def plot_signals(signal, components="all", kind="acc", save=None):
+def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
+                 figsize=None, xlim=None, ylim=None, save=None):
     """Plot the time histories of a signal.
 
     Parameters
@@ -31,6 +32,14 @@ def plot_signals(signal, components="all", kind="acc", save=None):
     components : {"x", "y", "z", "all"}, default "all"
     kind : {"acc", "vel", "disp"}, default "acc"
         Which quantity to plot.
+    factor : float, default 1.0
+        Multiplier applied to the plotted data (e.g. 1/9.81 to show g).
+    unit : str or None, default None
+        Y-axis unit label; if None the default SI unit for ``kind`` is used.
+    figsize : tuple or None, default None
+        Figure size; if None a default based on the number of components.
+    xlim, ylim : tuple or None, default None
+        Axis limits applied to every subplot when not None.
     save : str or None, default None
         File format/path to save the figure (e.g. "svg"), or None to show.
     """
@@ -41,7 +50,8 @@ def plot_signals(signal, components="all", kind="acc", save=None):
         "vel": ("Velocity", "vel", "m/s"),
         "disp": ("Displacement", "disp", "m"),
     }
-    title_word, prefix, unit = labels[kind]
+    title_word, prefix, default_unit = labels[kind]
+    unit = unit if unit is not None else default_unit
 
     if components == "all":
         comps = ("x", "y", "z")
@@ -50,7 +60,7 @@ def plot_signals(signal, components="all", kind="acc", save=None):
 
     time = signal.time
     fig, axes = plt.subplots(len(comps), 1, sharex=True,
-                             figsize=(10, 2.4 * len(comps)))
+                             figsize=figsize or (10, 2.4 * len(comps)))
     if len(comps) == 1:
         axes = [axes]
 
@@ -60,9 +70,13 @@ def plot_signals(signal, components="all", kind="acc", save=None):
             ax.text(0.5, 0.5, "component {} not available".format(comp),
                     ha="center", va="center", transform=ax.transAxes)
         else:
-            ax.plot(time, data, lw=0.8, color="C0")
+            ax.plot(time, data * factor, lw=0.8, color="C0")
         ax.set_ylabel("{} {}\n[{}]".format(comp.upper(), title_word, unit))
         ax.grid(True, alpha=0.3)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
 
     axes[-1].set_xlabel("Time [s]")
     axes[0].set_title("{} time history - device {}".format(

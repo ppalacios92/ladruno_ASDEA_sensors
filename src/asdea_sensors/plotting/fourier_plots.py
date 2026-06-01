@@ -17,7 +17,8 @@ def _finish(fig, save, default_name):
     return fname
 
 
-def plot_fourier(result, component="x", smooth=None, save=None):
+def plot_fourier(result, component="x", smooth=None, unit=None,
+                 figsize=None, xlim=None, ylim=None, save=None):
     """Plot a Fourier spectrum and mark its dominant frequencies.
 
     Parameters
@@ -26,14 +27,21 @@ def plot_fourier(result, component="x", smooth=None, save=None):
         Output of ``seismic.fourier.compute``.
     component : str, default "x"
     smooth : {None, "konno"}, default None
+    unit : str or None, default None
+        Y-axis unit label; if None the default "m/s^2 . s" is used.
+    figsize : tuple or None, default None
+        Figure size; if None a default is used.
+    xlim, ylim : tuple or None, default None
+        Axis limits applied when not None.
     save : str or None, default None
     """
     import matplotlib.pyplot as plt
 
     freqs = result["freqs"]
     spectrum = result["spectrum"]
+    unit = unit if unit is not None else "m/s^2 . s"
 
-    fig, ax = plt.subplots(figsize=(10, 4.5))
+    fig, ax = plt.subplots(figsize=figsize or (10, 4.5))
     ax.plot(freqs, spectrum, lw=0.9, color="C0", label="amplitude")
 
     dom_freqs = result.get("dom_freqs")
@@ -46,11 +54,15 @@ def plot_fourier(result, component="x", smooth=None, save=None):
                         ha="center", fontsize=8)
 
     ax.set_xlabel("Frequency [Hz]")
-    ax.set_ylabel("Fourier amplitude [m/s^2 . s]")
+    ax.set_ylabel("Fourier amplitude [{}]".format(unit))
     ax.set_title("Fourier amplitude spectrum - component {}".format(component),
                  fontweight="bold")
     ax.grid(True, alpha=0.3)
     ax.legend()
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     return _finish(fig, save, "fourier_{}".format(component))

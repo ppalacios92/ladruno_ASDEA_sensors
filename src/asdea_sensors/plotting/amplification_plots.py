@@ -17,13 +17,17 @@ def _finish(fig, save, default_name):
     return fname
 
 
-def plot_amplification(result, save=None):
+def plot_amplification(result, figsize=None, xlim=None, ylim=None, save=None):
     """Plot the amplification ratios for each sensor.
 
     Parameters
     ----------
     result : dict
         Output of ``ambient.amplification.compute`` (includes the basis used).
+    figsize : tuple or None, default None
+        Figure size; if None a default is used.
+    xlim, ylim : tuple or None, default None
+        Axis limits applied when not None.
     save : str or None, default None
     """
     import matplotlib.pyplot as plt
@@ -32,7 +36,7 @@ def plot_amplification(result, save=None):
     ratios = result["ratios"]
     basis = result.get("basis")
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=figsize or (10, 5))
     for device, ratio in ratios.items():
         ax.plot(freqs, ratio, lw=1.0, label=str(device))
 
@@ -47,6 +51,10 @@ def plot_amplification(result, save=None):
     ax.set_title(title, fontweight="bold")
     ax.grid(True, alpha=0.3)
     ax.legend()
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     return _finish(fig, save, "amplification")

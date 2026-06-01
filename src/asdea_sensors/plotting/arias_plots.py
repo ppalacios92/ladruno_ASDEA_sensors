@@ -17,7 +17,8 @@ def _finish(fig, save, default_name):
     return fname
 
 
-def plot_arias(result, component="x", save=None):
+def plot_arias(result, component="x", figsize=None, xlim=None, ylim=None,
+               save=None):
     """Plot the normalized Arias intensity curve and the significant duration.
 
     Parameters
@@ -25,6 +26,10 @@ def plot_arias(result, component="x", save=None):
     result : dict
         Output of ``seismic.arias.compute``.
     component : str, default "x"
+    figsize : tuple or None, default None
+        Figure size; if None a default is used.
+    xlim, ylim : tuple or None, default None
+        Axis limits applied when not None.
     save : str or None, default None
     """
     import numpy as np
@@ -44,7 +49,7 @@ def plot_arias(result, component="x", save=None):
         t_start = result.get("t_start")
         t_end = result.get("t_end")
 
-    fig, ax = plt.subplots(figsize=(9, 5))
+    fig, ax = plt.subplots(figsize=figsize or (9, 5))
     ax.plot(x, ia, lw=1.3, color="C0", label="Arias intensity")
 
     if t_start is not None and t_end is not None:
@@ -63,6 +68,10 @@ def plot_arias(result, component="x", save=None):
     ax.set_title(title, fontweight="bold")
     ax.grid(True, alpha=0.3)
     ax.legend()
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     return _finish(fig, save, "arias_{}".format(component))

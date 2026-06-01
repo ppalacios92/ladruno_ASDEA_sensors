@@ -17,7 +17,8 @@ def _finish(fig, save, default_name):
     return fname
 
 
-def plot_newmark(result, component="x", quantity="PSa", save=None):
+def plot_newmark(result, component="x", quantity="PSa", unit=None,
+                 figsize=None, xlim=None, ylim=None, save=None):
     """Plot a Newmark spectral quantity against period.
 
     Parameters
@@ -26,6 +27,12 @@ def plot_newmark(result, component="x", quantity="PSa", save=None):
         Output of ``seismic.newmark.compute``.
     component : str, default "x"
     quantity : {"PSa", "PSv", "Sd", "Sv", "Sa"}, default "PSa"
+    unit : str or None, default None
+        Y-axis unit label; if None the default unit for ``quantity`` is used.
+    figsize : tuple or None, default None
+        Figure size; if None a default is used.
+    xlim, ylim : tuple or None, default None
+        Axis limits applied when not None.
     save : str or None, default None
     """
     import matplotlib.pyplot as plt
@@ -37,18 +44,22 @@ def plot_newmark(result, component="x", quantity="PSa", save=None):
         "Sv": "m/s",
         "Sd": "m",
     }
-    unit = units.get(quantity, "")
+    unit = unit if unit is not None else units.get(quantity, "")
 
     T = result["T"]
     y = result[quantity]
 
-    fig, ax = plt.subplots(figsize=(9, 5))
+    fig, ax = plt.subplots(figsize=figsize or (9, 5))
     ax.plot(T, y, lw=1.3, color="C0")
     ax.set_xlabel("Period T [s]")
     ax.set_ylabel("{} [{}]".format(quantity, unit))
     ax.set_title("Newmark spectrum {} - component {}".format(
         quantity, component), fontweight="bold")
     ax.grid(True, alpha=0.3)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     return _finish(fig, save, "newmark_{}_{}".format(quantity, component))

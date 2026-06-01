@@ -17,7 +17,8 @@ def _finish(fig, save, default_name):
     return fname
 
 
-def plot_stft(result, component="x", save=None):
+def plot_stft(result, component="x", figsize=None, xlim=None, ylim=None,
+              save=None):
     """Plot a spectrogram.
 
     Parameters
@@ -25,6 +26,10 @@ def plot_stft(result, component="x", save=None):
     result : dict
         Output of ``seismic.stft.compute``.
     component : str, default "x"
+    figsize : tuple or None, default None
+        Figure size; if None a default is used.
+    xlim, ylim : tuple or None, default None
+        Axis limits applied when not None.
     save : str or None, default None
     """
     import numpy as np
@@ -34,7 +39,7 @@ def plot_stft(result, component="x", save=None):
     t = result["t"]
     zxx = np.abs(result["Zxx"])
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=figsize or (10, 5))
     mesh = ax.pcolormesh(t, f, zxx, shading="auto", cmap="viridis")
     cbar = fig.colorbar(mesh, ax=ax)
     cbar.set_label("Magnitude [m/s^2]")
@@ -43,6 +48,10 @@ def plot_stft(result, component="x", save=None):
     ax.set_ylabel("Frequency [Hz]")
     ax.set_title("Spectrogram (STFT) - component {}".format(component),
                  fontweight="bold")
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     return _finish(fig, save, "stft_{}".format(component))

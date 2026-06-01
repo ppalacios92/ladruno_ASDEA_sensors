@@ -17,8 +17,12 @@ def _finish(fig, save, default_name):
     return fname
 
 
-def plot_sta_lta(analysis, save=None):
-    """Plot the STA/LTA ratio with the acceptance band."""
+def plot_sta_lta(analysis, figsize=None, xlim=None, ylim=None, save=None):
+    """Plot the STA/LTA ratio with the acceptance band.
+
+    ``figsize`` overrides the default figure size; ``xlim``/``ylim`` set the
+    axis limits when not None.
+    """
     import numpy as np
     import matplotlib.pyplot as plt
 
@@ -32,7 +36,7 @@ def plot_sta_lta(analysis, save=None):
         x = np.arange(ratio.size)
         xlabel = "Sample"
 
-    fig, ax = plt.subplots(figsize=(10, 4.5))
+    fig, ax = plt.subplots(figsize=figsize or (10, 4.5))
     ax.plot(x, ratio, lw=0.8, color="C0", label="STA/LTA")
 
     vmin = config.get("vmin")
@@ -49,13 +53,21 @@ def plot_sta_lta(analysis, save=None):
     ax.set_title("STA/LTA ratio", fontweight="bold")
     ax.grid(True, alpha=0.3)
     ax.legend()
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     return _finish(fig, save, "ambient_sta_lta")
 
 
-def plot_windows(analysis, save=None):
-    """Plot the signal with the selected windows highlighted."""
+def plot_windows(analysis, figsize=None, xlim=None, ylim=None, save=None):
+    """Plot the signal with the selected windows highlighted.
+
+    ``figsize`` overrides the default figure size; ``xlim``/``ylim`` set the
+    axis limits when not None.
+    """
     import numpy as np
     import matplotlib.pyplot as plt
 
@@ -69,7 +81,7 @@ def plot_windows(analysis, save=None):
         x = np.arange(signal.size)
         xlabel = "Sample"
 
-    fig, ax = plt.subplots(figsize=(10, 4.5))
+    fig, ax = plt.subplots(figsize=figsize or (10, 4.5))
     ax.plot(x, signal, lw=0.6, color="0.5", label="signal")
 
     windows_pos = getattr(analysis, "windows_pos", None)
@@ -88,13 +100,21 @@ def plot_windows(analysis, save=None):
     ax.set_title("Selected ambient windows", fontweight="bold")
     ax.grid(True, alpha=0.3)
     ax.legend()
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     return _finish(fig, save, "ambient_windows")
 
 
-def plot_spectrum(analysis, save=None):
-    """Plot the per-window spectra and the mean spectrum with its peaks."""
+def plot_spectrum(analysis, figsize=None, xlim=None, ylim=None, save=None):
+    """Plot the per-window spectra and the mean spectrum with its peaks.
+
+    ``figsize`` overrides the default figure size; ``xlim``/``ylim`` set the
+    axis limits when not None.
+    """
     import numpy as np
     import matplotlib.pyplot as plt
 
@@ -102,7 +122,7 @@ def plot_spectrum(analysis, save=None):
     fft_abs = np.asarray(analysis.fft_abs)
     mean_spectrum = np.asarray(analysis.mean_spectrum)
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=figsize or (10, 5))
 
     # Per-window spectra (rows are windows) drawn faintly behind the mean.
     spectra = np.atleast_2d(fft_abs)
@@ -123,6 +143,10 @@ def plot_spectrum(analysis, save=None):
     ax.set_title("Ambient spectra", fontweight="bold")
     ax.grid(True, alpha=0.3)
     ax.legend()
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
     fig.tight_layout()
 
     return _finish(fig, save, "ambient_spectrum")
