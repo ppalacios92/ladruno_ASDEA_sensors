@@ -606,8 +606,8 @@ class DeviceHandle:
         freqs = amb.freqs[:, 0] if getattr(amb.freqs, "ndim", 1) == 2 else amb.freqs
         return {"freqs": freqs, "spectrum": amb.mean_spectrum, "f_dom": f_dom}
 
-    def ambient(self, sta=1.0, lta=30.0, vent=20.0, vmin=0.2, vmax=2.5,
-                p=0.05, bexp=40, component="x"):
+    def ambient(self, sta=1.0, lta=30.0, vent=30.0, vmin=0.7, vmax=1.4,
+                p=0.05, bexp=80, component="x"):
         """Ambient (microtremor) analysis for this device.
 
         Runs the whole pipeline internally (STA/LTA windowing -> taper -> FFT ->
@@ -622,9 +622,11 @@ class DeviceHandle:
             Short- and long-term average windows [s] for the STA/LTA trigger.
         vent : float
             Window length [s].
-        vmin, vmax : float
-            STA/LTA acceptance band (a window is kept only if its ratio stays
-            inside it).
+        vmin, vmax : float, default 0.7, 1.4
+            STA/LTA acceptance band: a window is kept only if its ratio stays
+            inside it. The tight 0.7-1.4 band (from BuildPeriod) keeps only
+            stationary microtremor windows; a wide band lets transients in and
+            flattens the mean spectrum.
         p : float
             Cosine taper fraction.
         bexp : int
