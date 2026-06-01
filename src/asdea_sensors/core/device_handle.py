@@ -160,16 +160,32 @@ class DeviceHandle:
         if self._window is not None:
             t0, t1 = self._window
             dur = float((np.datetime64(t1) - np.datetime64(t0)) / np.timedelta64(1, "s"))
+            n = self._exact_n(t0, t1, dt)
+            label = "  samples : %s / axis"
             print("  span    : %s  ->  %s" % (t0, t1))
         else:
             t0, t1 = self.dataset.time_span if self.dataset.time_span else (None, None)
             dur = self.dataset.duration
+            n = int(round(dur / dt)) if dt else 0
+            label = "  samples : ~%s / axis (full record)"
             print("  span    : full record  (%s  ->  %s)" % (t0, t1))
-        n = int(round(dur / dt)) if dt else 0
         print("  duration: %.1f s" % dur)
         print("  fs / dt : %.4f Hz / %.6f s" % (1.0 / dt, dt))
-        print("  samples : ~%s / axis (estimated)" % format(n, ","))
+        print(label % format(n, ","))
         print(sep)
+
+    def _exact_n(self, t0, t1, dt):
+        """Exact samples in ``[t0, t1]`` for the effective ``dt`` (matches read)."""
+        idx = self.dataset._index
+        files = idx.in_range(t0, t1)
+        if not files or not dt:
+            return 0
+        start = idx.parse_date(os.path.basename(files[0]))
+        if start is None:
+            return 0
+        s0 = float((np.datetime64(t0) - np.datetime64(start)) / np.timedelta64(1, "s"))
+        s1 = float((np.datetime64(t1) - np.datetime64(start)) / np.timedelta64(1, "s"))
+        return max(0, int(np.floor(s1 / dt)) - int(np.ceil(s0 / dt)) + 1)
 
     def _maybe_summary(self):
         if getattr(self.dataset, "verbose", False):

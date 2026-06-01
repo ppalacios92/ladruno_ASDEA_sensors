@@ -212,20 +212,40 @@ class SensorDataset:
 
     # -- windowing (whole dataset) -------------------------------------
 
+    def _exact_window_n(self, t0, t1):
+        """Exact number of samples in ``[t0, t1]`` (matches the reader trim).
+
+        Computed without reading the data: the read anchors the time vector at
+        the first overlapping file's start and keeps samples with
+        ``t0 <= t_abs <= t1`` (both ends inclusive), so the count is
+        ``floor((t1-start)/dt) - ceil((t0-start)/dt) + 1``.
+        """
+        files = self._index.in_range(t0, t1)
+        if not files or not self.dt:
+            return 0
+        start = self._index.parse_date(os.path.basename(files[0]))
+        if start is None:
+            return 0
+        s0 = float((np.datetime64(t0) - np.datetime64(start)) / np.timedelta64(1, "s"))
+        s1 = float((np.datetime64(t1) - np.datetime64(start)) / np.timedelta64(1, "s"))
+        k0 = int(np.ceil(s0 / self.dt))
+        k1 = int(np.floor(s1 / self.dt))
+        return max(0, k1 - k0 + 1)
+
     def _window_summary(self):
         """Print the windowed-dataset properties (span, duration, samples)."""
         sep = "-" * 60
         t0, t1 = self._default_window
         dur = float((np.datetime64(t1) - np.datetime64(t0))
                     / np.timedelta64(1, "s"))
-        n = int(round(dur / self.dt)) if self.dt else 0
+        n = self._exact_window_n(t0, t1)
         print(sep)
         print("windowed dataset")
         print("  span    : %s  ->  %s" % (t0, t1))
         print("  duration: %.1f s" % dur)
         print("  fs / dt : %.4f Hz / %.6f s" % (self.fs, self.dt))
         print("  devices : %s" % ", ".join(self.devices))
-        print("  samples : ~%s / axis / device (estimated)" % format(n, ","))
+        print("  samples : %s / axis / device" % format(n, ","))
         print(sep)
 
     def _windowed_copy(self, bounds):
