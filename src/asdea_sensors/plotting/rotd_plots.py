@@ -56,3 +56,60 @@ def plot_rotd(result, rotd=(0, 50, 100), figsize=None, xlim=None, ylim=None,
     fig.tight_layout()
 
     return _finish(fig, save, "rotd_spectra")
+
+
+def plot_rotd_all(dataset, devices, start_time, end_time, comp_x="x", comp_y="y",
+                  rotd=50, damping=0.05, angle_step=15, max_period=3.0, dT=0.02,
+                  baseline=True, fmin=None, fmax=None, figsize=None, xlim=None,
+                  ylim=None, save=None):
+    """One RotD percentile spectrum per sensor, overlaid (no manual loop).
+
+    Parameters
+    ----------
+    dataset : SensorDataset
+    devices : list of str
+    start_time, end_time : datetime or str
+    comp_x, comp_y : str
+        The two horizontal components to rotate.
+    rotd : int, default 50
+        Percentile to draw for every sensor (0/50/100).
+    damping, angle_step, max_period, dT
+        RotD parameters (coarser defaults keep it fast).
+    baseline : bool, default True
+    fmin, fmax : float or None
+        Band-pass edges applied before the spectrum when given.
+    figsize, xlim, ylim, save
+        Plot controls.
+
+    Returns
+    -------
+    None or str
+    """
+    import matplotlib.pyplot as plt
+    from ..seismic import rotd as _rotd
+
+    key = "ROTD%d" % rotd
+    fig, ax = plt.subplots(figsize=figsize or (10, 5))
+    for k, device in enumerate(devices):
+        handle = dataset.device(device).get_window(start_time, end_time)
+        if baseline:
+            handle = handle.baseline()
+        if fmin is not None and fmax is not None:
+            handle = handle.filter(fmin, fmax, engine="scipy")
+        sig = handle.signal(components="all")
+        r = _rotd.compute(sig.component(comp_x), sig.component(comp_y), sig.dt,
+                          rotd=rotd, damping=damping, angle_step=angle_step,
+                          max_period=max_period, dT=dT)
+        ax.plot(r["T"], r[key], lw=1.1, color="C%d" % (k % 10), label=device)
+
+    ax.set_xlabel("Period T [s]")
+    ax.set_ylabel("RotD%d PSa [m/s^2]" % rotd)
+    ax.set_title("RotD%d - %d sensors" % (rotd, len(devices)), fontweight="bold")
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=8)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    fig.tight_layout()
+    return _finish(fig, save, "rotd_all_%d" % rotd)

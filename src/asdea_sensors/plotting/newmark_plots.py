@@ -63,3 +63,79 @@ def plot_newmark(result, component="x", quantity="PSa", unit=None,
     fig.tight_layout()
 
     return _finish(fig, save, "newmark_{}_{}".format(quantity, component))
+
+
+def plot_newmark_all(dataset, devices, start_time, end_time, component="x",
+                     quantity="PSa", zeta=0.05, max_period=3.0, dT=0.02,
+                     factor=1.0, unit=None, baseline=True, fmin=None, fmax=None,
+                     group=True, figsize=None, xlim=None, ylim=None, save=None):
+    """Newmark spectra of several sensors over a window (no manual loop).
+
+    Reads each device, optionally baseline-corrects and band-passes it, computes
+    the Newmark spectrum and plots the chosen ``quantity`` (PSa by default).
+
+    Parameters
+    ----------
+    dataset : SensorDataset
+    devices : list of str
+    start_time, end_time : datetime or str
+        Window applied to every device.
+    component : str, default "x"
+    quantity : {"PSa", "PSv", "Sd", "Sv", "Sa"}, default "PSa"
+    zeta, max_period, dT, factor : floats
+        Newmark parameters (``factor=1/9.81`` to show acceleration spectra in g).
+    baseline : bool, default True
+    fmin, fmax : float or None
+        Band-pass edges applied before the spectrum when given.
+    group : bool, default True
+        ``True`` overlays every device on one axes; ``False`` one figure each.
+    unit, figsize, xlim, ylim, save
+        Plot controls.
+
+    Returns
+    -------
+    list or str or None
+    """
+    import matplotlib.pyplot as plt
+    from ..seismic import newmark as _newmark
+
+    units = {"PSa": "m/s^2", "Sa": "m/s^2", "PSv": "m/s", "Sv": "m/s", "Sd": "m"}
+    ylabel_unit = unit if unit is not None else units.get(quantity, "")
+
+    specs = {}
+    for device in devices:
+        handle = dataset.device(device).get_window(start_time, end_time)
+        if baseline:
+            handle = handle.baseline()
+        if fmin is not None and fmax is not None:
+            handle = handle.filter(fmin, fmax, engine="scipy")
+        sig = handle.signal(components="all")
+        specs[device] = _newmark.compute(sig.component(component), sig.dt,
+                                         zeta=zeta, max_period=max_period,
+                                         dT=dT, factor=factor)
+
+    if not group:
+        paths = []
+        for device in devices:
+            paths.append(plot_newmark(specs[device], component=component,
+                                      quantity=quantity, unit=ylabel_unit,
+                                      figsize=figsize, xlim=xlim, ylim=ylim,
+                                      save=save))
+        return paths
+
+    fig, ax = plt.subplots(figsize=figsize or (10, 5))
+    for k, device in enumerate(devices):
+        s = specs[device]
+        ax.plot(s["T"], s[quantity], lw=1.1, color="C%d" % (k % 10), label=device)
+    ax.set_xlabel("Period T [s]")
+    ax.set_ylabel("%s [%s]" % (quantity, ylabel_unit))
+    ax.set_title("Newmark %s - %d sensors - component %s"
+                 % (quantity, len(devices), component), fontweight="bold")
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=8)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    fig.tight_layout()
+    return _finish(fig, save, "newmark_all_%s" % quantity)

@@ -104,3 +104,74 @@ def plot_psd_bands(result, band, figsize=None, xlim=None, ylim=None,
     fig.tight_layout()
 
     return _finish(fig, save, "psd_bands")
+
+
+def plot_psd_all(dataset, devices, start_time, end_time, component="x",
+                 nperseg=512, noverlap=256, window="hann", bands=None,
+                 baseline=True, fmin=None, fmax=None, group=True,
+                 figsize=None, xlim=(0, 25), ylim=None, save=None):
+    """PSD of several sensors over a window (no manual loop).
+
+    Reads each device, optionally baseline-corrects and band-passes it, computes
+    the Welch PSD and overlays the curves; also returns the per-device results
+    so band energy can be compared with :func:`plot_psd_bands`.
+
+    Parameters
+    ----------
+    dataset : SensorDataset
+    devices : list of str
+    start_time, end_time : datetime or str
+    component : str, default "x"
+    nperseg, noverlap, window, bands
+        Welch parameters (see ``seismic.psd.compute``).
+    baseline : bool, default True
+    fmin, fmax : float or None
+        Band-pass edges applied before the PSD when given.
+    group : bool, default True
+        ``True`` overlays every device; ``False`` one figure each.
+    figsize, xlim, ylim, save
+        Plot controls (xlim defaults to 0-25 Hz).
+
+    Returns
+    -------
+    dict
+        ``{device: psd_result}`` (use it with ``plot_psd_bands``).
+    """
+    import matplotlib.pyplot as plt
+    from ..seismic import psd as _psd
+
+    results = {}
+    for device in devices:
+        handle = dataset.device(device).get_window(start_time, end_time)
+        if baseline:
+            handle = handle.baseline()
+        if fmin is not None and fmax is not None:
+            handle = handle.filter(fmin, fmax, engine="scipy")
+        sig = handle.signal(components="all")
+        results[device] = _psd.compute(sig.component(component), sig.dt,
+                                       nperseg=nperseg, noverlap=noverlap,
+                                       window=window, bands=bands)
+
+    if group:
+        fig, ax = plt.subplots(figsize=figsize or (10, 5))
+        for k, device in enumerate(devices):
+            r = results[device]
+            ax.semilogy(r["f"], r["Pxx"] + 1e-30, lw=0.9,
+                        color="C%d" % (k % 10), label=device)
+        ax.set_xlabel("Frequency [Hz]")
+        ax.set_ylabel("PSD [(m/s^2)^2/Hz]")
+        ax.set_title("PSD - %d sensors - component %s" % (len(devices), component),
+                     fontweight="bold")
+        ax.grid(True, which="both", alpha=0.3)
+        ax.legend(fontsize=8)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        fig.tight_layout()
+        _finish(fig, save, "psd_all")
+    else:
+        for device in devices:
+            plot_psd(results[device], component=component, figsize=figsize,
+                     xlim=xlim, ylim=ylim, save=save)
+    return results
