@@ -139,14 +139,13 @@ class SensorDataset:
         lines.append("devices     : %s" % ", ".join(self.devices))
         if self.fs is not None:
             lines.append("fs / dt     : %.4f Hz / %.6f s" % (self.fs, self.dt))
-        if self.max_points:
-            lines.append("max points  : %s samples/axis (largest device)"
-                         % format(self.max_points, ","))
         lines.append(sep)
-        lines.append("axes (per sensor):")
+        lines.append("axes / samples (per sensor):")
         for dev in self.devices:
             axes = self.axes_map.get(dev, (0, 1, 2))
-            lines.append("  %-10s -> %s" % (dev, tuple(axes)))
+            n = self.n_samples.get(dev, 0)
+            lines.append("  %-10s -> %-9s  %s samples/axis"
+                         % (dev, str(tuple(axes)), format(n, ",")))
         lines.append(sep)
 
         total = 0
@@ -199,13 +198,40 @@ class SensorDataset:
     # -- preprocessing -------------------------------------------------
 
     def resample(self, dt=None, fs=None):
-        """Return a new dataset resampled to a target ``dt`` or ``fs`` (all sensors)."""
+        """Return a new dataset resampled to a target ``dt`` (all sensors).
+
+        Pass ``dt`` (``fs`` is an optional alternative). Every read from the
+        returned dataset is resampled to this rate. Prints a short summary when
+        ``verbose``, with the rescaled per-sensor sample counts.
+        """
         from . import resample_service as _resample
+        target = _resample.target_dt(dt=dt, fs=fs)
+
         new = copy.copy(self)
-        new._resample_dt = _resample.target_dt(dt=dt, fs=fs)
+        old_dt, old_fs = self.dt, self.fs
+        new._resample_dt = target
         # Fresh cache so resampled results never collide with the originals.
         new._cache_obj = ResultCache()
         new._cache = new._cache_obj._store
+
+        # The resampled dataset reports the new rate and the rescaled counts.
+        ratio = (old_dt / target) if (old_dt and target) else 1.0
+        new.dt = target
+        new.fs = 1.0 / target
+        new.n_samples = {d: int(round(n * ratio)) for d, n in self.n_samples.items()}
+        new.max_points = max(new.n_samples.values()) if new.n_samples else 0
+
+        if self.verbose:
+            sep = "-" * 60
+            print(sep)
+            print("resample : dt %.6f -> %.6f s   |   fs %.4f -> %.4f Hz"
+                  % (old_dt, target, old_fs, new.fs))
+            print("max points: %s samples/axis (largest device, rescaled)"
+                  % format(new.max_points, ","))
+            for d in new.devices:
+                print("  %-10s -> %s samples/axis"
+                      % (d, format(new.n_samples.get(d, 0), ",")))
+            print(sep)
         return new
 
     # -- broadcast helper ----------------------------------------------

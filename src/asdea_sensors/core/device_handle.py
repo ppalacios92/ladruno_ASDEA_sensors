@@ -145,6 +145,36 @@ class DeviceHandle:
         self._log(log(result, False))
         return result
 
+    def _effective_dt(self):
+        """The dt the reads will use (handle resample, dataset resample, native)."""
+        return (self._resample_dt
+                or getattr(self.dataset, "_resample_dt", None)
+                or self.dataset.dt)
+
+    def summary(self):
+        """Print the window's data properties (span, duration, fs/dt, samples)."""
+        sep = "-" * 60
+        dt = self._effective_dt()
+        print(sep)
+        print("window : %s" % self.device)
+        if self._window is not None:
+            t0, t1 = self._window
+            dur = float((np.datetime64(t1) - np.datetime64(t0)) / np.timedelta64(1, "s"))
+            print("  span    : %s  ->  %s" % (t0, t1))
+        else:
+            t0, t1 = self.dataset.time_span if self.dataset.time_span else (None, None)
+            dur = self.dataset.duration
+            print("  span    : full record  (%s  ->  %s)" % (t0, t1))
+        n = int(round(dur / dt)) if dt else 0
+        print("  duration: %.1f s" % dur)
+        print("  fs / dt : %.4f Hz / %.6f s" % (1.0 / dt, dt))
+        print("  samples : ~%s / axis (estimated)" % format(n, ","))
+        print(sep)
+
+    def _maybe_summary(self):
+        if getattr(self.dataset, "verbose", False):
+            self.summary()
+
     # -- reading and windowing -----------------------------------------
 
     def signal(self, components="all", mode="auto", workers=4, remove_mean=False):
@@ -178,6 +208,7 @@ class DeviceHandle:
         new._window = _window.window_from_start(self.dataset._index, self.device,
                                                 start, length)
         new._signal_cache = {}
+        new._maybe_summary()
         return new
 
     def get_window(self, t0, t1):
@@ -186,6 +217,7 @@ class DeviceHandle:
         new._window = _window.window_from_bounds(self.dataset._index, self.device,
                                                  t0, t1)
         new._signal_cache = {}
+        new._maybe_summary()
         return new
 
     def resample(self, dt=None, fs=None):
