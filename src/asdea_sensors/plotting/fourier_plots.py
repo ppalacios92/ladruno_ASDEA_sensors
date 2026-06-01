@@ -69,7 +69,7 @@ def plot_fourier(result, component="x", unit=None,
     return _finish(fig, save, "fourier_{}".format(component))
 
 
-def plot_fourier_all(dataset, spectra, components="all", layout="auto",
+def plot_fourier_all(spectra, dataset=None, components="all", layout="auto",
                      group=None, figsize=None, xlim=(0, 25), ylim=None,
                      save=None):
     """Plot precomputed Fourier spectra (no compute here); layout from shape.
@@ -97,13 +97,15 @@ def plot_fourier_all(dataset, spectra, components="all", layout="auto",
     figsize, xlim, ylim, save
         Plot controls (xlim defaults to 0-25 Hz).
     """
+    spectra, dataset = _panels.resolve(spectra, dataset)
+
     def mark(ax, res, color):
         dom_f, dom_p = res.get("dom_freqs"), res.get("dom_peaks")
         if dom_f is not None and dom_p is not None:
             ax.plot(dom_f, dom_p, "rv", ms=6)
 
     return _panels.draw_analysis(
-        dataset, spectra,
+        spectra, dataset=dataset,
         curve=lambda r: (r["freqs"], r["spectrum"] + 1e-20),
         components=components, layout=layout, group=group, yscale="log",
         xlabel="Frequency [Hz]", ylabel_unit="m/s^2 . s",

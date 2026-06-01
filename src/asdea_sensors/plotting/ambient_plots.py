@@ -198,7 +198,7 @@ def plot_spectrum(result, peak_spacing_hz=0.2, num_peaks=4, min_freq=0.0,
     return found
 
 
-def plot_mean_spectrum_all(dataset, means, component="x", layout="auto",
+def plot_mean_spectrum_all(means, dataset=None, component="x", layout="auto",
                            group=None, figsize=None, xlim=(0, 25), ylim=None,
                            save=None):
     """Plot precomputed ambient mean spectra (no compute here); layout from shape.
@@ -230,16 +230,18 @@ def plot_mean_spectrum_all(dataset, means, component="x", layout="auto",
     dict or float
         ``{device: dominant_frequency_Hz}`` (multi-sensor) or the single f_dom.
     """
+    means, dataset = _panels.resolve(means, dataset)
     _panels.draw_analysis(
-        dataset, means,
+        means, dataset=dataset,
         curve=lambda r: (r["freqs"], r["spectrum"]),
         layout=layout, group=group, yscale="linear",
         xlabel="Frequency [Hz]", ylabel_unit="m/s^2 . s",
         title_word="Mean amplitude", name="ambient_mean_all",
         figsize=figsize, xlim=xlim, ylim=ylim, save=save)
 
-    if isinstance(means, dict) and any(d in means for d in dataset.devices):
-        return {d: means[d]["f_dom"] for d in dataset.devices if d in means}
+    if _panels._shape(means) in ("device_flat", "device_comp"):
+        order = (list(dataset.devices) if dataset is not None else list(means))
+        return {d: means[d]["f_dom"] for d in order if d in means}
     if isinstance(means, dict) and "f_dom" in means:
         return means["f_dom"]
     return None
@@ -247,12 +249,14 @@ def plot_mean_spectrum_all(dataset, means, component="x", layout="auto",
 
 def _ambient_devices(dataset, results):
     """Devices present in an ``ds.ambient(...)`` broadcast result, or None."""
-    if isinstance(results, dict) and any(d in results for d in dataset.devices):
-        return [d for d in dataset.devices if d in results]
+    if _panels._shape(results) in ("device_flat", "device_comp"):
+        if dataset is not None:
+            return [d for d in dataset.devices if d in results]
+        return list(results)
     return None
 
 
-def plot_sta_lta_all(dataset, results, layout="auto", group=None,
+def plot_sta_lta_all(results, dataset=None, layout="auto", group=None,
                      figsize=None, xlim=None, ylim=None, save=None):
     """Plot the STA/LTA ratio with the vmin/vmax acceptance band (object-driven).
 
@@ -269,6 +273,7 @@ def plot_sta_lta_all(dataset, results, layout="auto", group=None,
     import numpy as np
     import matplotlib.pyplot as plt
 
+    results, dataset = _panels.resolve(results, dataset)
     layout = _panels._layout_from_group(layout, group)
     colors = getattr(dataset, "device_colors", {}) or {}
     titles = getattr(dataset, "titles", {}) or {}
@@ -323,7 +328,7 @@ def plot_sta_lta_all(dataset, results, layout="auto", group=None,
     return _panels._finish(fig, save, "sta_lta_all")
 
 
-def plot_windows_all(dataset, results, layout="auto", group=None,
+def plot_windows_all(results, dataset=None, layout="auto", group=None,
                      figsize=None, xlim=None, ylim=None, save=None):
     """Plot the signal with the selected ambient windows shaded (object-driven).
 
@@ -338,6 +343,7 @@ def plot_windows_all(dataset, results, layout="auto", group=None,
     import numpy as np
     import matplotlib.pyplot as plt
 
+    results, dataset = _panels.resolve(results, dataset)
     layout = _panels._layout_from_group(layout, group)
     colors = getattr(dataset, "device_colors", {}) or {}
 
@@ -389,7 +395,7 @@ def plot_windows_all(dataset, results, layout="auto", group=None,
     return _panels._finish(fig, save, "ambient_windows_all")
 
 
-def plot_spectrum_all(dataset, results, peak_spacing_hz=0.2, num_peaks=4,
+def plot_spectrum_all(results, dataset=None, peak_spacing_hz=0.2, num_peaks=4,
                       min_freq=0.0, figsize=None, xlim=None, ylim=None,
                       save=None):
     """Per-sensor ambient spectra: all windows (gray) + mean (color) + peaks.
@@ -405,7 +411,9 @@ def plot_spectrum_all(dataset, results, peak_spacing_hz=0.2, num_peaks=4,
     import matplotlib.pyplot as plt
     from scipy.signal import find_peaks
 
-    devices = [d for d in dataset.devices if d in results]
+    results, dataset = _panels.resolve(results, dataset)
+    devices = ([d for d in dataset.devices if d in results]
+               if dataset is not None else list(results))
     colors = getattr(dataset, "device_colors", {}) or {}
     pastel = ["mediumaquamarine", "lightcoral", "cornflowerblue", "plum"]
     n = len(devices)

@@ -67,7 +67,7 @@ def plot_newmark(result, component="x", quantity="PSa", unit=None,
     return _finish(fig, save, "newmark_{}_{}".format(quantity, component))
 
 
-def plot_newmark_all(dataset, specs, components="all", quantity="PSa",
+def plot_newmark_all(specs, dataset=None, components="all", quantity="PSa",
                      unit=None, layout="auto", group=None, figsize=None,
                      xlim=None, ylim=None, save=None):
     """Plot precomputed Newmark spectra (no compute here); layout from shape.
@@ -99,8 +99,9 @@ def plot_newmark_all(dataset, specs, components="all", quantity="PSa",
     """
     units = {"PSa": "m/s^2", "Sa": "m/s^2", "PSv": "m/s", "Sv": "m/s", "Sd": "m"}
     ylabel_unit = unit if unit is not None else units.get(quantity, "")
+    specs, dataset = _panels.resolve(specs, dataset)
     return _panels.draw_analysis(
-        dataset, specs,
+        specs, dataset=dataset,
         curve=lambda r: (r["T"], r[quantity]),
         components=components, layout=layout, group=group, yscale="linear",
         xlabel="Period T [s]", ylabel_unit=ylabel_unit, title_word=quantity,

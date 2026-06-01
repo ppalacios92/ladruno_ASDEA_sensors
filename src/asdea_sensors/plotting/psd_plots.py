@@ -108,8 +108,8 @@ def plot_psd_bands(result, band, figsize=None, xlim=None, ylim=None,
     return _finish(fig, save, "psd_bands")
 
 
-def plot_psd_all(dataset, results, components="all", layout="auto", group=None,
-                 figsize=None, xlim=(0, 25), ylim=None, save=None):
+def plot_psd_all(results, dataset=None, components="all", layout="auto",
+                 group=None, figsize=None, xlim=(0, 25), ylim=None, save=None):
     """Plot precomputed Welch PSDs (no compute here); layout from shape.
 
     ::
@@ -134,8 +134,9 @@ def plot_psd_all(dataset, results, components="all", layout="auto", group=None,
     figsize, xlim, ylim, save
         Plot controls (xlim defaults to 0-25 Hz).
     """
+    results, dataset = _panels.resolve(results, dataset)
     return _panels.draw_analysis(
-        dataset, results,
+        results, dataset=dataset,
         curve=lambda r: (r["f"], r["Pxx"] + 1e-30),
         components=components, layout=layout, group=group, yscale="log",
         xlabel="Frequency [Hz]", ylabel_unit="(m/s^2)^2/Hz",

@@ -421,6 +421,8 @@ class SensorDataset:
         of them. When ``verbose`` it announces whether the run is pooled or
         serial.
         """
+        from .result import BroadcastResult
+
         def run(dev):
             # device() carries the dataset window so broadcasts read the same
             # conditioned window as ds.MOF00135 and share its cached signal.
@@ -441,14 +443,16 @@ class SensorDataset:
             results = dict(zip(devices, engine.map(run, devices)))
             if self.verbose:
                 print("[pool] %s done (%d devices)" % (method_name, n))
-            return results
+            return BroadcastResult(results, dataset=self)
 
         if self.verbose:
             why = ("parallel=False" if not self.parallel
                    else "n_jobs=1" if self.n_jobs in (None, 1)
                    else "single device")
             print("[serial] %s -> %d device(s) (%s)" % (method_name, n, why))
-        return {dev: run(dev) for dev in devices}
+        # The result remembers its dataset so the *_all plots can read the
+        # device order/colors/titles without being passed the dataset again.
+        return BroadcastResult({dev: run(dev) for dev in devices}, dataset=self)
 
     # -- broadcast analysis (all devices) ------------------------------
     # Each one runs per device through the batch engine and returns a dict
@@ -491,6 +495,15 @@ class SensorDataset:
         """
         return self._broadcast("ambient", sta=sta, lta=lta, vent=vent, vmin=vmin,
                                vmax=vmax, p=p, bexp=bexp, component=component, kind=kind)
+
+    def hvsr(self, **kwargs):
+        """HVSR (Nakamura) for every device. See DeviceHandle.hvsr.
+
+        Returns ``{device: result}``. Pass the analysis kwargs (sta, lta, vent,
+        vmin, vmax, p, bexp, combine, comp_h, comp_v, f0_min, f0_max, overlap);
+        the sampling rate comes from the object.
+        """
+        return self._broadcast("hvsr", **kwargs)
 
     # -- building characterization (multi-sensor) ----------------------
     # These use the sensor geometry (config.SENSOR_GEOMETRY) and work across

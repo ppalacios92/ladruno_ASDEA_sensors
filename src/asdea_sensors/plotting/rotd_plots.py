@@ -60,7 +60,7 @@ def plot_rotd(result, rotd=(0, 50, 100), figsize=None, xlim=None, ylim=None,
     return _finish(fig, save, "rotd_spectra")
 
 
-def plot_rotd_all(dataset, results, rotd=50, layout="auto", group=None,
+def plot_rotd_all(results, dataset=None, rotd=50, layout="auto", group=None,
                   figsize=None, xlim=None, ylim=None, save=None):
     """Plot precomputed RotD spectra (no compute here); layout from shape.
 
@@ -93,6 +93,7 @@ def plot_rotd_all(dataset, results, rotd=50, layout="auto", group=None,
     """
     import matplotlib.pyplot as plt
 
+    results, dataset = _panels.resolve(results, dataset)
     pcts = [rotd] if isinstance(rotd, (int, float)) else list(rotd)
     layout = _panels._layout_from_group(layout, group)
     colors = getattr(dataset, "device_colors", {}) or {}
@@ -109,7 +110,7 @@ def plot_rotd_all(dataset, results, rotd=50, layout="auto", group=None,
         if ylim is not None:
             ax.set_ylim(ylim)
 
-    is_multi = isinstance(results, dict) and any(d in results for d in dataset.devices)
+    is_multi = _panels._shape(results) in ("device_flat", "device_comp")
 
     # -- single sensor: requested percentiles overlaid on one axes ----
     if not is_multi:
@@ -123,7 +124,8 @@ def plot_rotd_all(dataset, results, rotd=50, layout="auto", group=None,
         fig.tight_layout()
         return _panels._finish(fig, save, "rotd_all")
 
-    devices = [d for d in dataset.devices if d in results]
+    devices = ([d for d in dataset.devices if d in results]
+               if dataset is not None else list(results))
 
     # -- one percentile, overlay every sensor on one axes -------------
     if len(pcts) == 1 and layout != "grid":

@@ -42,21 +42,36 @@ def comp_list(components):
     return list(components)
 
 
-def _shape(results, dataset):
-    """Classify the result container: raw / comp / device_flat / device_comp."""
+def resolve(arg1, arg2):
+    """Accept both ``plot(results)`` and the old ``plot(dataset, results)``.
+
+    Returns ``(results, dataset)``. ``results`` carries its own ``.dataset``
+    (a :class:`BroadcastResult`), so the new form needs only the result; the old
+    form (dataset first, results second) is still supported.
+    """
+    if arg2 is not None:                       # old: (dataset, results)
+        return arg2, arg1
+    return arg1, getattr(arg1, "dataset", None)
+
+
+def _shape(results):
+    """Classify the result container: raw / comp / device_flat / device_comp.
+
+    Dataset-free: a *raw* result has only array/scalar values; a *comp* result
+    is keyed by x/y/z; otherwise the keys are devices (flat or nested).
+    """
     comp_set = {"x", "y", "z"}
     if not isinstance(results, dict) or not results:
         return "raw"
-    keys = list(results)
-    devs = set(getattr(dataset, "devices", []))
-    if set(keys) <= comp_set:
+    values = list(results.values())
+    if all(not isinstance(v, dict) for v in values):
+        return "raw"
+    if set(results) <= comp_set:
         return "comp"
-    if any(k in devs for k in keys):
-        sub = results[keys[0]]
-        if isinstance(sub, dict) and set(sub) <= comp_set:
-            return "device_comp"
-        return "device_flat"
-    return "raw"
+    sub = values[0]
+    if isinstance(sub, dict) and set(sub) <= comp_set:
+        return "device_comp"
+    return "device_flat"
 
 
 def _layout_from_group(layout, group):
@@ -66,18 +81,22 @@ def _layout_from_group(layout, group):
     return "overlay" if group else "grid"
 
 
-def draw_analysis(dataset, results, curve, *, components="all", layout="auto",
-                  group=None, yscale="linear", xlabel="", ylabel_unit="",
-                  title_word="", name="plot", mark=None, figsize=None,
-                  xlim=None, ylim=None, save=None):
+def draw_analysis(results, curve, *, dataset=None, components="all",
+                  layout="auto", group=None, yscale="linear", xlabel="",
+                  ylabel_unit="", title_word="", name="plot", mark=None,
+                  figsize=None, xlim=None, ylim=None, save=None):
     """Draw a precomputed analysis result, picking the layout from its shape.
 
     Parameters
     ----------
-    dataset : SensorDataset
-        Source object (device order, colors, titles).
     results : dict
-        See the module docstring for the accepted shapes.
+        See the module docstring for the accepted shapes. A ``BroadcastResult``
+        carries its own ``.dataset`` (device order, colors, titles); pass
+        ``dataset`` only to override it.
+    curve : callable
+        ``curve(one_result) -> (x, y)`` arrays to plot.
+    dataset : SensorDataset or None
+        Source object override; defaults to ``results.dataset``.
     curve : callable
         ``curve(one_result) -> (x, y)`` arrays to plot.
     components : str or sequence, default "all"
@@ -99,8 +118,10 @@ def draw_analysis(dataset, results, curve, *, components="all", layout="auto",
     """
     import matplotlib.pyplot as plt
 
+    if dataset is None:
+        dataset = getattr(results, "dataset", None)
     layout = _layout_from_group(layout, group)
-    shape = _shape(results, dataset)
+    shape = _shape(results)
     colors = getattr(dataset, "device_colors", {}) or {}
     titles = getattr(dataset, "titles", {}) or {}
     comps = comp_list(components)
@@ -142,7 +163,8 @@ def draw_analysis(dataset, results, curve, *, components="all", layout="auto",
         fig.tight_layout()
         return _finish(fig, save, name)
 
-    devices = [d for d in dataset.devices if d in results]
+    devices = ([d for d in dataset.devices if d in results]
+               if dataset is not None else list(results))
 
     # -- multi-sensor, one series each ---------------------------------
     if shape == "device_flat":

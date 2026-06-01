@@ -79,7 +79,7 @@ def plot_arias(result, component="x", figsize=None, xlim=None, ylim=None,
     return _finish(fig, save, "arias_{}".format(component))
 
 
-def plot_arias_all(dataset, results, components="all", layout="auto",
+def plot_arias_all(results, dataset=None, components="all", layout="auto",
                    group=None, figsize=None, xlim=None, ylim=None, save=None):
     """Plot precomputed Arias curves (no compute here); layout from shape.
 
@@ -119,8 +119,9 @@ def plot_arias_all(dataset, results, components="all", layout="auto",
         if t0 is not None and t1 is not None:
             ax.axvspan(t0, t1, color="C3", alpha=0.12)
 
+    results, dataset = _panels.resolve(results, dataset)
     return _panels.draw_analysis(
-        dataset, results, curve=curve,
+        results, dataset=dataset, curve=curve,
         components=components, layout=layout, group=group, yscale="linear",
         xlabel="Time [s]", ylabel_unit="%", title_word="Arias intensity",
         name="arias_all", mark=mark,
