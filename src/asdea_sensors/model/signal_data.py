@@ -187,7 +187,7 @@ class SignalData:
 
     # -- analysis entry point ------------------------------------------
 
-    def ambient(self, config, component="x"):
+    def ambient(self, config, component="x", kind="acc"):
         """Return an :class:`AmbientAnalysis` bound to this signal.
 
         Parameters
@@ -196,6 +196,13 @@ class SignalData:
             Ambient configuration (Fs, STA, LTA, vent, vmin, vmax, p, bexp,
             f1, f2, ...).
         component : {"x", "y", "z"}, default "x"
+        kind : {"acc", "vel", "disp"}, default "acc"
+            Which quantity to analyze. "vel"/"disp" require ``derive()`` first.
         """
         from ..ambient.ambient_analysis import AmbientAnalysis
-        return AmbientAnalysis(self.component(component), config)
+        arr = getattr(self, "%s_%s" % (kind, component), None)
+        if arr is None:
+            raise ValueError(
+                "ambient: kind=%r component=%r not available; call derive() "
+                "before using velocity/displacement." % (kind, component))
+        return AmbientAnalysis(arr, config)

@@ -607,7 +607,7 @@ class DeviceHandle:
         return {"freqs": freqs, "spectrum": amb.mean_spectrum, "f_dom": f_dom}
 
     def ambient(self, sta=1.0, lta=30.0, vent=30.0, vmin=0.7, vmax=1.4,
-                p=0.05, bexp=80, component="x"):
+                p=0.05, bexp=80, component="x", kind="acc"):
         """Ambient (microtremor) analysis for this device.
 
         Runs the whole pipeline internally (STA/LTA windowing -> taper -> FFT ->
@@ -632,6 +632,9 @@ class DeviceHandle:
         bexp : int
             Konno-Ohmachi smoothing exponent.
         component : {"x", "y", "z"}, default "x"
+        kind : {"acc", "vel", "disp"}, default "acc"
+            Quantity to analyze. "vel"/"disp" need the object derived
+            (``ds.derive()``).
 
         Returns
         -------
@@ -643,13 +646,13 @@ class DeviceHandle:
         import numpy as np
 
         params = dict(sta=sta, lta=lta, vent=vent, vmin=vmin, vmax=vmax, p=p,
-                      bexp=bexp, component=component)
+                      bexp=bexp, component=component, kind=kind)
 
         def builder():
             sig = self._signal()
             cfg = {"Fs": 1.0 / sig.dt, "STA": sta, "LTA": lta, "vent": vent,
                    "vmin": vmin, "vmax": vmax, "p": p, "bexp": bexp}
-            amb = sig.ambient(cfg, component=component)
+            amb = sig.ambient(cfg, component=component, kind=kind)
             amb.average()
             freqs = (amb.freqs[:, 0]
                      if getattr(amb.freqs, "ndim", 1) == 2 else amb.freqs)
@@ -667,8 +670,9 @@ class DeviceHandle:
             }
 
         def log(res, cached):
-            return ("[ambient] %s comp=%s T=%.4f s (%s)"
-                    % (self.device, component, res["dominant_period"] or float("nan"),
+            return ("[ambient] %s comp=%s kind=%s T=%.4f s (%s)"
+                    % (self.device, component, kind,
+                       res["dominant_period"] or float("nan"),
                        "cached" if cached else "computed"))
 
         return self._cached_analysis("ambient", params, builder, log)

@@ -473,14 +473,14 @@ class SensorDataset:
         return self._broadcast("ambient_mean", config=config, component=component)
 
     def ambient(self, sta=1.0, lta=30.0, vent=30.0, vmin=0.7, vmax=1.4,
-                p=0.05, bexp=80, component="x"):
+                p=0.05, bexp=80, component="x", kind="acc"):
         """Ambient (microtremor) analysis for every device. See DeviceHandle.ambient.
 
         Pass only the analysis parameters (the sampling rate comes from the
         object). Returns ``{device: result}`` to feed the ambient plots.
         """
         return self._broadcast("ambient", sta=sta, lta=lta, vent=vent, vmin=vmin,
-                               vmax=vmax, p=p, bexp=bexp, component=component)
+                               vmax=vmax, p=p, bexp=bexp, component=component, kind=kind)
 
     # -- building characterization (multi-sensor) ----------------------
     # These use the sensor geometry (config.SENSOR_GEOMETRY) and work across
