@@ -162,12 +162,20 @@ def plot_overview(dataset, devices=None, titles=None, factor=1.0, unit="g",
         label = titles.get(device, device)
         for i, (comp, ylab, color) in enumerate(rows):
             ax = axes[i][j]
+            vals = np.asarray(series[comp], dtype=float) * factor
             if t.size:
-                ax.plot(t, np.asarray(series[comp], dtype=float) * factor,
-                        color=color, lw=0.6)
+                ax.plot(t, vals, color=color, lw=0.6)
             if w0 is not None:
                 ax.axvline(w0, color="red", ls="--", lw=1.0)
                 ax.axvline(w1, color="red", ls="--", lw=1.0)
+                # Scale the y axis to the data inside the window, not the whole
+                # record, so the windowed motion is not dwarfed by peaks
+                # elsewhere.
+                in_win = (t >= w0) & (t <= w1)
+                if in_win.any():
+                    lo, hi = float(vals[in_win].min()), float(vals[in_win].max())
+                    pad = 0.05 * (hi - lo) if hi > lo else (abs(hi) * 0.05 or 1e-9)
+                    ax.set_ylim(lo - pad, hi + pad)
             if i == 0:
                 ax.set_title("%s - %s" % (device, label), fontsize=9, fontweight="bold")
             if j == 0:
