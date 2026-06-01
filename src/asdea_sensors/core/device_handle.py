@@ -5,6 +5,10 @@ analysis API for that single sensor. Every result is stored in the parent
 dataset's cache, so asking for it again returns the cached value.
 """
 
+import os
+
+import numpy as np
+
 from ..model.signal_data import SignalData
 from . import window_service as _window
 from .cache import _freeze
@@ -80,6 +84,14 @@ class DeviceHandle:
             res_dt = getattr(self.dataset, "_resample_dt", None)
         if res_dt is not None:
             sig = sig.resample(dt=res_dt)
+
+        # Absolute time per sample, anchored at the first file's start datetime.
+        # Lets plots show real dates instead of seconds from zero.
+        if files:
+            start = self.dataset._index.parse_date(os.path.basename(files[0]))
+            if start is not None:
+                sig.t_abs = (np.datetime64(start)
+                             + (sig.time * 1e9).astype("timedelta64[ns]"))
         return sig
 
     def _signal(self, components="all", remove_mean=False):

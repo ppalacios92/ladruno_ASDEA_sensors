@@ -22,7 +22,8 @@ def _finish(fig, save, default_name):
 
 
 def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
-                 figsize=None, xlim=None, ylim=None, save=None):
+                 time_axis="absolute", figsize=None, xlim=None, ylim=None,
+                 save=None):
     """Plot the time histories of a signal.
 
     Parameters
@@ -36,14 +37,21 @@ def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
         Multiplier applied to the plotted data (e.g. 1/9.81 to show g).
     unit : str or None, default None
         Y-axis unit label; if None the default SI unit for ``kind`` is used.
+    time_axis : {"absolute", "relative"}, default "absolute"
+        "absolute" uses the real date/time on the x axis (format
+        ``%Y-%m-%d %H:%M:%S``), keeping the temporal reference; it needs
+        ``signal.t_abs`` (falls back to relative if missing). "relative" uses
+        seconds from the window start (time at zero).
     figsize : tuple or None, default None
         Figure size; if None a default based on the number of components.
     xlim, ylim : tuple or None, default None
-        Axis limits applied to every subplot when not None.
+        Axis limits applied to every subplot when not None. For
+        ``time_axis="absolute"`` xlim is a pair of datetimes.
     save : str or None, default None
         File format/path to save the figure (e.g. "svg"), or None to show.
     """
     import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
 
     labels = {
         "acc": ("Acceleration", "acc", "m/s^2"),
@@ -58,7 +66,10 @@ def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
     else:
         comps = (components,)
 
-    time = signal.time
+    # X axis: absolute date/time when available, else seconds from zero.
+    use_abs = (time_axis == "absolute" and getattr(signal, "t_abs", None) is not None)
+    time = signal.t_abs if use_abs else signal.time
+
     fig, axes = plt.subplots(len(comps), 1, sharex=True,
                              figsize=figsize or (10, 2.4 * len(comps)))
     if len(comps) == 1:
@@ -78,7 +89,13 @@ def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
         if ylim is not None:
             ax.set_ylim(ylim)
 
-    axes[-1].set_xlabel("Time [s]")
+    if use_abs:
+        axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d %H:%M:%S"))
+        for lbl in axes[-1].get_xticklabels():
+            lbl.set_rotation(90)
+        axes[-1].set_xlabel("Date")
+    else:
+        axes[-1].set_xlabel("Time [s]")
     axes[0].set_title("{} time history - device {}".format(
         title_word, signal.device), fontweight="bold")
     fig.tight_layout()
