@@ -22,8 +22,8 @@ def _finish(fig, save, default_name):
 
 
 def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
-                 time_axis="absolute", figsize=None, xlim=None, ylim=None,
-                 save=None):
+                 time_axis="absolute", color="C0", figsize=None, xlim=None,
+                 ylim=None, save=None):
     """Plot the time histories of a signal.
 
     Parameters
@@ -42,6 +42,8 @@ def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
         ``%Y-%m-%d %H:%M:%S``), keeping the temporal reference; it needs
         ``signal.t_abs`` (falls back to relative if missing). "relative" uses
         seconds from the window start (time at zero).
+    color : str, default "C0"
+        Line color; ``plot_signals_all`` passes the device color here.
     figsize : tuple or None, default None
         Figure size; if None a default based on the number of components.
     xlim, ylim : tuple or None, default None
@@ -81,7 +83,7 @@ def plot_signals(signal, components="all", kind="acc", factor=1.0, unit=None,
             ax.text(0.5, 0.5, "component {} not available".format(comp),
                     ha="center", va="center", transform=ax.transAxes)
         else:
-            ax.plot(time, data * factor, lw=0.8, color="C0")
+            ax.plot(time, data * factor, lw=0.8, color=color)
         ax.set_ylabel("{} {}\n[{}]".format(comp.upper(), title_word, unit))
         ax.grid(True, alpha=0.3)
         if xlim is not None:
@@ -173,11 +175,12 @@ def plot_signals_all(dataset, devices=None, start_time=None, end_time=None,
 
     if not group:
         paths = []
-        for device in devices:
+        for k, device in enumerate(devices):
             paths.append(plot_signals(
                 sigs[device], components=components, kind=kind, factor=factor,
-                unit=unit, time_axis=time_axis, figsize=figsize, xlim=xlim,
-                ylim=ylim, save=save))
+                unit=unit, time_axis=time_axis,
+                color=colors.get(device, "C%d" % (k % 10)),
+                figsize=figsize, xlim=xlim, ylim=ylim, save=save))
         return paths
 
     # group=True: overlay every device, one row per component.
