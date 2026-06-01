@@ -6,6 +6,9 @@ default: the signal is expected to be filtered upstream.
 (Ported from AmbientSoilPeriod fft_vent.)
 """
 
+import numpy as np
+from scipy.signal import butter, filtfilt, detrend
+
 
 def compute(fs, windows, apply_filter=False, f1=0.1, f2=25.0):
     """Compute the FFT of each window.
@@ -26,4 +29,26 @@ def compute(fs, windows, apply_filter=False, f1=0.1, f2=25.0):
     tuple
         ``(freqs, complex_spectrum, magnitude)`` matrices.
     """
-    raise NotImplementedError
+    n_samples, n_windows = windows.shape
+    nfft = n_samples
+    freq_axis = np.fft.fftfreq(nfft, d=1 / fs)[:nfft // 2]
+
+    freqs = np.tile(freq_axis[:, None], (1, n_windows))
+    complex_spectrum = np.zeros((nfft // 2, n_windows), dtype=np.complex64)
+    magnitude = np.zeros((nfft // 2, n_windows), dtype=np.float64)
+
+    if apply_filter:
+        wn = [f1 / (fs / 2), f2 / (fs / 2)]
+        b, a = butter(4, wn, btype='band')
+
+    for j in range(n_windows):
+        amp = windows[:, j].copy()
+        amp = detrend(amp)
+        if apply_filter:
+            amp = filtfilt(b, a, amp)
+        amp = amp - np.mean(amp)
+        spectrum = np.fft.fft(amp, n=nfft)[:nfft // 2]
+        complex_spectrum[:, j] = spectrum
+        magnitude[:, j] = np.abs(spectrum)
+
+    return freqs, complex_spectrum, magnitude

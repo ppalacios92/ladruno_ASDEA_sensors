@@ -4,6 +4,8 @@ Used when a window spans many files. Each file slice is read on a worker
 thread (I/O bound), then the slices are concatenated in order.
 """
 
+from concurrent.futures import ThreadPoolExecutor
+
 
 def read_slices(reader, files, device, workers=4):
     """Read ``device`` from each file in ``files`` using a thread pool.
@@ -23,4 +25,11 @@ def read_slices(reader, files, device, workers=4):
     list
         Per-file results in the same order as ``files``.
     """
-    raise NotImplementedError
+    files = list(files)
+    if not files:
+        return []
+
+    # executor.map preserves the input order regardless of completion order.
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = pool.map(lambda path: reader.read_one(path, device), files)
+        return list(results)

@@ -4,6 +4,10 @@ Two engines: ObsPy (Trace.filter, zero-phase Butterworth) and SciPy
 (butter + filtfilt). Both validate the high cut against the Nyquist frequency.
 """
 
+import warnings
+
+import numpy as np
+
 
 def bandpass(acc, dt, fmin, fmax, engine="obspy", order=4, zerophase=True):
     """Band-pass filter a 1-D signal.
@@ -27,4 +31,38 @@ def bandpass(acc, dt, fmin, fmax, engine="obspy", order=4, zerophase=True):
     np.ndarray
         Filtered signal.
     """
-    raise NotImplementedError
+    acc = np.asarray(acc, dtype=float)
+
+    nyquist = 0.5 / dt
+    if fmax >= nyquist:
+        clipped = 0.99 * nyquist
+        warnings.warn(
+            "High cut %.2f Hz exceeds Nyquist (%.2f Hz); clipped to %.2f Hz"
+            % (fmax, nyquist, clipped)
+        )
+        fmax = clipped
+
+    if engine == "obspy":
+        from obspy import Trace
+
+        tr = Trace(data=acc.copy())
+        tr.stats.delta = dt
+        tr.filter(
+            "bandpass",
+            freqmin=fmin,
+            freqmax=fmax,
+            corners=order,
+            zerophase=zerophase,
+        )
+        return tr.data
+
+    if engine == "scipy":
+        from scipy.signal import butter, filtfilt, lfilter
+
+        wn = [fmin / nyquist, fmax / nyquist]
+        b, a = butter(order, wn, btype="band")
+        if zerophase:
+            return filtfilt(b, a, acc)
+        return lfilter(b, a, acc)
+
+    raise ValueError("engine must be 'obspy' or 'scipy'")

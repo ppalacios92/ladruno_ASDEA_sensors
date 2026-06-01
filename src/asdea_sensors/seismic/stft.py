@@ -25,4 +25,18 @@ def compute(acc, dt, nperseg=256, noverlap=224, window="hann", fmax=25.0):
     dict
         Keys: f, t, Zxx.
     """
-    raise NotImplementedError
+    import numpy as np
+    from scipy.signal import stft
+
+    acc = np.asarray(acc, dtype=float)
+    fs = 1.0 / dt
+
+    f, t, Zxx = stft(acc, fs=fs, nperseg=nperseg, noverlap=noverlap,
+                     window=window)
+
+    # Keep only the frequencies up to fmax for display.
+    mask = f <= fmax
+    f = f[mask]
+    Zxx = Zxx[mask, :]
+
+    return {"f": f, "t": t, "Zxx": Zxx}

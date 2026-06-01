@@ -4,17 +4,21 @@ Mirrors the large-file awareness pattern: estimate how much memory a read
 would take and compare it against the available RAM (psutil).
 """
 
+import psutil
+
 
 def estimate_bytes(n_samples, n_components=3, dtype_size=8):
     """Estimate the memory of a signal read, in bytes."""
-    raise NotImplementedError
+    return int(n_samples) * int(n_components) * int(dtype_size)
 
 
 def is_large(n_bytes, ram_fraction=0.5):
     """Return True when ``n_bytes`` exceeds ``ram_fraction`` of the free RAM."""
-    raise NotImplementedError
+    available = psutil.virtual_memory().available
+    return n_bytes > ram_fraction * available
 
 
 def ram_status():
     """Return ``(used, available, percent)`` from psutil."""
-    raise NotImplementedError
+    vm = psutil.virtual_memory()
+    return vm.used, vm.available, vm.percent

@@ -5,6 +5,8 @@ displacement come from the derived signal, so the signal must be integrated
 first.
 """
 
+import numpy as np
+
 
 def compute(acc, vel, disp):
     """Return the peak ground values of one component.
@@ -23,4 +25,8 @@ def compute(acc, vel, disp):
     dict
         Keys: PGA, PGV, PGD.
     """
-    raise NotImplementedError
+    return {
+        "PGA": np.max(np.abs(acc)),
+        "PGV": np.max(np.abs(vel)),
+        "PGD": np.max(np.abs(disp)),
+    }

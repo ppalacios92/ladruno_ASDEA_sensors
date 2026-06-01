@@ -1,5 +1,7 @@
 """Average spectrum across windows. (Ported from AmbientSoilPeriod prom_vent.)"""
 
+import numpy as np
+
 
 def compute(spectra):
     """Average a per-window spectrum matrix into a single mean spectrum.
@@ -14,4 +16,4 @@ def compute(spectra):
     np.ndarray
         Mean spectrum of shape ``(n_freqs,)``.
     """
-    raise NotImplementedError
+    return np.mean(spectra, axis=1)

@@ -8,6 +8,9 @@ horizontal component at two sensors separated in plan. With three horizontal
 channels the full ``(U_x, U_y, theta)`` can be solved.
 """
 
+import numpy as np
+from scipy import signal as sp_signal
+
 
 def floor_rotation(sig_a, sig_b, distance, component="x"):
     """Floor rotation theta(t) from two sensors on the same floor.
@@ -25,7 +28,11 @@ def floor_rotation(sig_a, sig_b, distance, component="x"):
     np.ndarray
         Rotation time history theta(t) in radians.
     """
-    raise NotImplementedError
+    sig_a = np.asarray(sig_a, dtype=float)
+    sig_b = np.asarray(sig_b, dtype=float)
+    if distance == 0:
+        raise ValueError("distance between sensors must be non-zero")
+    return (sig_a - sig_b) / distance
 
 
 def torsional_spectrum(theta, dt, smooth="konno", bexp=40):
@@ -45,7 +52,28 @@ def torsional_spectrum(theta, dt, smooth="konno", bexp=40):
     dict
         Keys: freqs, spectrum, torsional_freq.
     """
-    raise NotImplementedError
+    theta = np.asarray(theta, dtype=float)
+    n = theta.size
+    spectrum = np.abs(np.fft.rfft(theta))
+    freqs = np.fft.rfftfreq(n, d=dt)
+
+    if smooth == "konno":
+        from asdea_sensors.ambient import konno_ohmachi
+        mag2d = spectrum.reshape(-1, 1)
+        spectrum = konno_ohmachi.compute(freqs, mag2d, bexp)[:, 0]
+
+    # Skip the DC bin when picking the dominant torsional frequency.
+    if spectrum.size > 1:
+        k = int(np.argmax(spectrum[1:])) + 1
+        torsional_freq = float(freqs[k])
+    else:
+        torsional_freq = float("nan")
+
+    return {
+        "freqs": freqs,
+        "spectrum": spectrum,
+        "torsional_freq": torsional_freq,
+    }
 
 
 def torsion_ratio(theta, translation, radius):
@@ -65,7 +93,12 @@ def torsion_ratio(theta, translation, radius):
     dict
         Keys: ratio (time history), max_ratio.
     """
-    raise NotImplementedError
+    theta = np.asarray(theta, dtype=float)
+    translation = np.asarray(translation, dtype=float)
+    denom = np.where(np.abs(translation) > 0, translation, np.nan)
+    ratio = (theta * radius) / denom
+    max_ratio = float(np.nanmax(np.abs(ratio))) if ratio.size else float("nan")
+    return {"ratio": ratio, "max_ratio": max_ratio}
 
 
 def orbit(acc_x, acc_y):
@@ -82,4 +115,7 @@ def orbit(acc_x, acc_y):
     dict
         Keys: x, y (the trajectory).
     """
-    raise NotImplementedError
+    return {
+        "x": np.asarray(acc_x, dtype=float),
+        "y": np.asarray(acc_y, dtype=float),
+    }

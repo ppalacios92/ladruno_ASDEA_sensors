@@ -5,6 +5,8 @@ ratio stays inside ``[vmin, vmax]`` (quiet, stationary windows). (Ported from
 AmbientSoilPeriod window_selector.)
 """
 
+import numpy as np
+
 
 def compute(fs, time, signal, ratio, vent, vmin, vmax):
     """Select stationary windows by STA/LTA thresholds.
@@ -30,4 +32,27 @@ def compute(fs, time, signal, ratio, vent, vmin, vmax):
     tuple
         ``(MT, MV, positions, win_ids)`` window time/signal matrices and ids.
     """
-    raise NotImplementedError
+    np_samples = int(fs * vent)
+    end_index = len(time) - 2 * np_samples + 1
+
+    MT = []
+    MV = []
+    positions = []
+    win_ids = []
+
+    for i, a in enumerate(range(0, end_index + 1, np_samples)):
+        segment = ratio[a:a + np_samples]
+        if segment.shape[0] < np_samples:
+            continue
+        if np.all((segment > vmin) & (segment < vmax)):
+            MT.append(time[a:a + np_samples])
+            MV.append(signal[a:a + np_samples])
+            positions.append(a)
+            win_ids.append(i)
+
+    MT = np.column_stack(MT) if MT else np.empty((np_samples, 0))
+    MV = np.column_stack(MV) if MV else np.empty((np_samples, 0))
+    positions = np.array(positions)
+    win_ids = np.array(win_ids)
+
+    return MT, MV, positions, win_ids
