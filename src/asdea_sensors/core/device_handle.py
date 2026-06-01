@@ -659,6 +659,7 @@ class DeviceHandle:
                 "sta_lta_ratio": amb.sta_lta_ratio, "sta": amb.sta, "lta": amb.lta,
                 "windows_pos": amb.windows_pos, "windows_signal": amb.windows_signal,
                 "freqs": freqs, "per_window_spectra": amb.fft_abs,
+                "per_window_smoothed": amb.smoothed,
                 "spectrum": amb.mean_spectrum, "mean_spectrum": amb.mean_spectrum,
                 "f_dom": f_dom, "dominant_period": amb.dominant_period,
             }

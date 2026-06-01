@@ -19,48 +19,55 @@ def _finish(fig, save, default_name):
     return fname
 
 
-def plot_sta_lta(analysis, figsize=None, xlim=None, ylim=None, save=None):
-    """Plot the STA/LTA ratio with the acceptance band.
+def plot_sta_lta(result, figsize=None, xlim=None, ylim=None, save=None):
+    """Signal, STA, LTA and STA/LTA ratio (AmbientSoilPeriod style).
 
-    ``figsize`` overrides the default figure size; ``xlim``/``ylim`` set the
-    axis limits when not None.
+    Pass one device result from ``ds.ambient(...)`` (e.g. ``amb["MOF00135"]``).
+    Four stacked panels: the signal, the short-term average, the long-term
+    average, and the STA/LTA ratio with the ``vmin``/``vmax`` band (red dashed)
+    and a vertical gridline every ``vent`` seconds.
     """
     import numpy as np
     import matplotlib.pyplot as plt
 
-    ratio = np.asarray(analysis.sta_lta_ratio)
-    config = analysis.config or {}
-    fs = config.get("Fs")
-    if fs:
-        x = np.arange(ratio.size) / fs
-        xlabel = "Time [s]"
-    else:
-        x = np.arange(ratio.size)
-        xlabel = "Sample"
+    sig = np.asarray(result["signal"])
+    sta = np.asarray(result["sta"])
+    lta = np.asarray(result["lta"])
+    ratio = np.asarray(result["sta_lta_ratio"])
+    fs = result.get("fs")
+    vmin, vmax, vent = result.get("vmin"), result.get("vmax"), result.get("vent")
+    t = np.arange(sig.size) / fs if fs else np.arange(sig.size)
 
-    fig, ax = plt.subplots(figsize=figsize or (10, 4.5))
-    ax.plot(x, ratio, lw=0.8, color="C0", label="STA/LTA")
+    fig, axes = plt.subplots(4, 1, sharex=True, figsize=figsize or (10, 9))
+    panels = [(sig, "Signal", "Signal"),
+              (sta, "STA", "Short-Term Average (STA)"),
+              (lta, "LTA", "Long-Term Average (LTA)")]
+    for ax, (y, ylab, title) in zip(axes[:3], panels):
+        ax.plot(t[:y.size], y, color="C0")
+        ax.set_ylabel(ylab, fontweight="bold")
+        ax.set_title(title, fontsize=11, fontweight="bold")
 
-    vmin = config.get("vmin")
-    vmax = config.get("vmax")
+    axr = axes[3]
+    axr.plot(t[:ratio.size], ratio, color="C0", label="STA/LTA")
     if vmin is not None:
-        ax.axhline(vmin, color="C3", ls="--", lw=1.0, label="acceptance band")
+        axr.axhline(vmin, color="red", ls="--", label="vmin = %g" % vmin)
     if vmax is not None:
-        ax.axhline(vmax, color="C3", ls="--", lw=1.0)
-    if vmin is not None and vmax is not None:
-        ax.axhspan(vmin, vmax, color="C2", alpha=0.1)
-
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel("STA/LTA ratio [-]")
-    ax.set_title("STA/LTA ratio", fontweight="bold")
-    ax.grid(True, alpha=0.3)
-    ax.legend()
-    if xlim is not None:
-        ax.set_xlim(xlim)
+        axr.axhline(vmax, color="red", ls="--", label="vmax = %g" % vmax)
+    if fs and vent:
+        for i in range(1, int(np.max(t) // vent) + 1):
+            axr.axvline(i * vent, color="gray", ls=":", lw=0.5)
+    axr.set_ylabel("STA / LTA", fontweight="bold")
+    axr.set_title("STA / LTA Ratio", fontsize=11, fontweight="bold")
+    axr.legend(fontsize=8)
     if ylim is not None:
-        ax.set_ylim(ylim)
-    fig.tight_layout()
+        axr.set_ylim(ylim)
 
+    for ax in axes:
+        ax.grid(True, alpha=0.5)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+    axes[-1].set_xlabel("Time [s]", fontweight="bold")
+    fig.tight_layout()
     return _finish(fig, save, "ambient_sta_lta")
 
 
@@ -111,50 +118,84 @@ def plot_windows(analysis, figsize=None, xlim=None, ylim=None, save=None):
     return _finish(fig, save, "ambient_windows")
 
 
-def plot_spectrum(analysis, figsize=None, xlim=None, ylim=None, save=None):
-    """Plot the per-window spectra and the mean spectrum with its peaks.
+def plot_spectrum(result, peak_spacing_hz=0.2, num_peaks=4, min_freq=0.0,
+                  figsize=None, xlim=None, ylim=None, save=None):
+    """All-window spectra (gray) + mean (steelblue) + peaks (AmbientSoilPeriod style).
 
-    ``figsize`` overrides the default figure size; ``xlim``/``ylim`` set the
-    axis limits when not None.
+    Pass one device result from ``ds.ambient(...)`` (e.g. ``amb["MOF00135"]``).
+    Log-frequency axis; every window spectrum is drawn light gray, the mean in
+    steelblue, and the ``num_peaks`` strongest peaks of the mean are marked with
+    their frequency and period.
+
+    Parameters
+    ----------
+    result : dict
+        One device result from ``ds.ambient(...)``.
+    peak_spacing_hz : float, default 0.2
+        Minimum spacing between detected peaks.
+    num_peaks : int, default 4
+        Strongest peaks to mark.
+    min_freq : float, default 0.0
+        Ignore peaks below this frequency.
+    figsize, xlim, ylim, save
+        Plot controls.
+
+    Returns
+    -------
+    list of dict
+        The detected peaks ``[{"freq", "period", "amplitude"}, ...]``.
     """
     import numpy as np
     import matplotlib.pyplot as plt
+    from scipy.signal import find_peaks
 
-    freqs = np.asarray(analysis.freqs)
-    fft_abs = np.asarray(analysis.fft_abs)
-    mean_spectrum = np.asarray(analysis.mean_spectrum)
+    freqs = np.asarray(result["freqs"])
+    f = freqs[:, 0] if freqs.ndim == 2 else freqs
+    windows = result.get("per_window_smoothed")
+    if windows is None:
+        windows = result.get("per_window_spectra")
+    windows = np.asarray(windows)
+    mean = np.asarray(result["mean_spectrum"])
+    df = f[1] - f[0]
+    min_dist = max(1, int(peak_spacing_hz / df))
 
-    # freqs / fft_abs are (n_freqs, n_windows); use the 1-D frequency axis and
-    # plot one faint line per window column.
-    freq_axis = freqs[:, 0] if freqs.ndim == 2 else freqs
-    spectra = fft_abs if fft_abs.ndim == 2 else fft_abs[:, None]
+    fig, ax = plt.subplots(figsize=figsize or (10, 4))
+    if windows.ndim == 2:
+        for k in range(windows.shape[1]):
+            ax.semilogx(f, windows[:, k], color="lightgray", alpha=0.4)
+    elif windows.size:
+        ax.semilogx(f, windows, color="lightgray", alpha=0.4)
+    ax.semilogx(f, mean, color="steelblue", lw=2, label="Average Spectrum")
 
-    fig, ax = plt.subplots(figsize=figsize or (10, 5))
+    peaks, _ = find_peaks(mean, distance=min_dist)
+    peaks = [p for p in peaks if f[p] >= min_freq]
+    top = sorted(peaks, key=lambda i: mean[i], reverse=True)[:num_peaks]
+    pastel = ["mediumaquamarine", "lightcoral", "cornflowerblue", "plum"]
+    found = []
+    for i, idx in enumerate(top):
+        fi, amp = f[idx], mean[idx]
+        Ti = 1.0 / fi if fi else 0.0
+        ax.plot(fi, amp, "o", color=pastel[i % len(pastel)], markersize=6,
+                label="Peak %d: f = %.2f Hz / T = %.2f s" % (i + 1, fi, Ti))
+        found.append({"freq": fi, "period": Ti, "amplitude": amp})
 
-    for k in range(spectra.shape[1]):
-        ax.plot(freq_axis, spectra[:, k], lw=0.5, color="0.7",
-                label="windows" if k == 0 else None)
-
-    ax.plot(freq_axis, mean_spectrum, lw=1.6, color="C0", label="mean spectrum")
-
-    dom = getattr(analysis, "dominant_period", None)
-    if dom:
-        f_dom = 1.0 / dom
-        ax.axvline(f_dom, color="C3", ls="--", lw=1.0,
-                   label="dominant {:.2f} Hz".format(f_dom))
-
-    ax.set_xlabel("Frequency [Hz]")
-    ax.set_ylabel("Fourier amplitude [m/s^2 . s]")
-    ax.set_title("Ambient spectra", fontweight="bold")
-    ax.grid(True, alpha=0.3)
-    ax.legend()
+    ax.grid(True, which="both", ls="--", alpha=0.5)
+    ax.set_xlabel("Frequency [Hz]", fontweight="bold")
+    ax.set_ylabel("Amplitude", fontweight="bold")
+    ax.set_title("Spectrum and Average (All Windows)", fontweight="bold")
     if xlim is not None:
         ax.set_xlim(xlim)
     if ylim is not None:
         ax.set_ylim(ylim)
+    ax.legend(loc="upper left", fontsize=9)
     fig.tight_layout()
+    _finish(fig, save, "ambient_spectrum")
 
-    return _finish(fig, save, "ambient_spectrum")
+    print("Peaks")
+    for p in found:
+        print("  f = %.3f Hz   T = %.3f s   A = %.4g"
+              % (p["freq"], p["period"], p["amplitude"]))
+    return found
 
 
 def plot_mean_spectrum_all(dataset, means, component="x", layout="auto",
